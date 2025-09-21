@@ -1,71 +1,127 @@
 <view class="page">
+	<!-- 用户信息头部 -->
 	<view class="page__hd i-header">
 		<view class="g-bd">
 			<view class="g-bda" wx:if="{{userInfo}}">
 				<view class="g-bda-userinfo">
-					<image class="userinfo-avatar" src="{{userInfo.avatarUrl}}"></image>
-					<text class="userinfo-nickname">{{userInfo.nickName}}</text>
+					<!-- 使用新的头像选择方式 -->
+					<button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+						<image class="userinfo-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
+					</button>
+					<view class="userinfo-details">
+						<!-- 使用新的昵称输入方式 -->
+						<input class="nickname-input" 
+							   type="nickname" 
+							   placeholder="请输入昵称" 
+							   value="{{userInfo.nickName}}" 
+							   bindinput="onNicknameInput" 
+							   maxlength="20" />
+						<text class="userinfo-gender" wx:if="{{userInfo.gender}}">{{userInfo.gender === 1 ? '男' : '女'}}</text>
+						<text class="userinfo-location" wx:if="{{userInfo.country}}">{{userInfo.country}} {{userInfo.province}} {{userInfo.city}}</text>
+					</view>
 				</view>
 			</view>
 			<view wx:else>
-				<view bindtap="getuserinfo" class="g-bda-userinfo">
-					<image class="userinfo-avatar"></image>
-					<text class="userinfo-nickname">点击登陆</text>
+				<view class="g-bda-userinfo login-prompt">
+					<!-- 使用新的头像选择方式 -->
+					<button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+						<image class="userinfo-avatar default-avatar" src="/images/default-avatar.svg"></image>
+					</button>
+					<view class="userinfo-details">
+						<!-- 使用新的昵称输入方式 -->
+						<input class="nickname-input" 
+							   type="nickname" 
+							   placeholder="请输入昵称" 
+							   value="{{userInfo.nickName || ''}}" 
+							   bindinput="onNicknameInput" 
+							   maxlength="20" />
+						<text class="login-tip">请选择头像并输入昵称</text>
+					</view>
 				</view>
 			</view>
 		</view>
 	</view>
+	
+	<!-- 风格标签选择区域 -->
+	<view class="tags-section">
+		<view class="section-header">
+			<view class="section-title">我的风格标签</view>
+			<view class="section-subtitle">选择符合你穿搭风格的标签，让推荐更精准</view>
+		</view>
+		<view class="tags-container">
+			<!-- 预设标签 -->
+			<view wx:for="{{styleTags}}" wx:key="*this" 
+				  class="tag-item {{selectedTags.indexOf(item) > -1 ? 'selected' : ''}}"
+				  bindtap="toggleTag" 
+				  data-tag="{{item}}">
+				{{item}}
+				<view class="tag-delete-btn" catchtap="removeTag" data-tag="{{item}}">×</view>
+			</view>
+			
+			<!-- 自定义标签 -->
+			<view wx:for="{{customTags}}" wx:key="*this" 
+				  class="tag-item custom-tag {{selectedTags.indexOf(item) > -1 ? 'selected' : ''}}"
+				  bindtap="toggleTag" 
+				  data-tag="{{item}}">
+				{{item}}
+				<view class="tag-delete-btn" catchtap="removeCustomTag" data-tag="{{item}}">×</view>
+			</view>
+			
+			<!-- 添加标签按钮 -->
+			<view class="tag-item add-tag" bindtap="showAddTagModal">
+				<text class="add-icon">+</text>
+				<text class="add-text">添加</text>
+			</view>
+		</view>
+	</view>
+	
+	<!-- 添加标签弹窗 -->
+	<view class="add-tag-modal {{showAddModal ? 'show' : ''}}" bindtap="hideAddTagModal">
+		<view class="modal-content" catchtap="stopPropagation">
+			<view class="modal-header">
+				<view class="modal-title">添加自定义标签</view>
+				<view class="close-btn" bindtap="hideAddTagModal">×</view>
+			</view>
+			<view class="modal-body">
+				<input 
+					class="tag-input" 
+					placeholder="请输入标签名称" 
+					value="{{customTagInput}}"
+					bindinput="onCustomTagInput"
+					focus="{{showAddModal}}"
+				/>
+				<view class="input-tips">标签名称不超过10个字符</view>
+			</view>
+			<view class="modal-footer">
+				<button class="cancel-btn" bindtap="hideAddTagModal">取消</button>
+				<button class="confirm-btn" bindtap="addCustomTag">确定</button>
+			</view>
+		</view>
+	</view>
 
+	<!-- 功能菜单 -->
 	<view class="page__bd">
 		<view class="weui-panel">
-			<!-- <view class="weui-panel__hd">个人中心</view> -->
 			<view class="weui-panel__bd">
 				<view class="weui-media-box weui-media-box_small-appmsg">
 					<view class="weui-cells weui-cells_in-small-appmsg">
-                    <navigator url="../addimage/addimage" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
-							<!-- <view class="weui-cell__hd">
-								<image src="../../images/image.png" style="width: 22px;height: 22px;margin-right: 11px;margin-top:12rpx;" />
-							</view> -->
+						<!-- 形象照功能 -->
+						<view bindtap="chooseProfilePhoto" bindlongpress="deleteProfilePhoto" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
 							<view class="weui-cell__bd weui-cell_primary">
-								<view>上传搭配</view>
+								<view class="profile-photo-cell">
+									<view class="profile-photo-label">形象照</view>
+									<view class="profile-photo-preview" wx:if="{{profilePhoto}}">
+										<image class="profile-photo-image" src="{{profilePhoto}}" mode="aspectFill"></image>
+										<view class="photo-delete-hint">长按删除</view>
+									</view>
+									<view class="profile-photo-placeholder" wx:else>
+									</view>
+								</view>
 							</view>
 							<view class="weui-cell__ft weui-cell__ft_in-access"></view>
-						</navigator>
-						<navigator url="../your/your" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
-							<!-- <view class="weui-cell__hd">
-								<image src="../../images/icon/your.png" style="width: 24px;height: 21px;margin-right: 10px;margin-top:10rpx;" />
-							</view> -->
-							<view class="weui-cell__bd weui-cell_primary">
-								<view>看看你适合什么样的穿搭</view>
-							</view>
-							<view class="weui-cell__ft weui-cell__ft_in-access"></view>
-
-						</navigator>
+						</view>
 						
-						<navigator url="../collection/collection" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
-							<!-- <view class="weui-cell__hd">
-								<image src="../../images/icon/collection.png" style="width: 22px;height: 22px;margin-right: 11px;margin-top:12rpx;" />
-							</view> -->
-							<view class="weui-cell__bd weui-cell_primary">
-								<view>我的收藏</view>
-							</view>
-							<view class="weui-cell__ft weui-cell__ft_in-access"></view>
-						</navigator>
-
-						<navigator url="../userhelp/userhelp" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
-							<!-- <view class="weui-cell__hd">
-								<image src="https://7765-we-63574e-1258830969.tcb.qcloud.la/%E5%B8%AE%E5%8A%A9.png?sign=d2b51b5cb1c020e1d336c21dfe73c361&t=1557565531" style="width: 22px;height: 22px;margin-right: 11px;margin-top:12rpx;" />
-							</view> -->
-							<view class="weui-cell__bd weui-cell_primary">
-								<view>使用帮助</view>
-							</view>
-							<view class="weui-cell__ft weui-cell__ft_in-access"></view>
-						</navigator>
-
 						<view bindtap="about" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
-							<!-- <view class="weui-cell__hd">
-								<image src="../../images/icon/about.png" style="width: 20px;height: 20px;margin-right: 11px;margin-top:18rpx;" />
-							</view> -->
 							<view class="weui-cell__bd weui-cell_primary">
 								<view>关于本程序</view>
 							</view>

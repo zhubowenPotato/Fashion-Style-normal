@@ -1,51 +1,76 @@
 <!--pages/index/index.wxml-->
 
-<!--轮播图-->
-  <swiper  class="swipers" indicator-dots="{{indicatordots}}"  autoplay="{{autoplay}}" interval="{{interval}}"   duration="{{duration}}">
-    <block wx:for="{{imgArray}}" wx:key="index">
-    <navigator url='/pages/mmore/mmore'>   <!--  图片跳转 -->
-      <swiper-item>
-        <image  data-url="{{item}}" src="{{item}}" class="slide-image" style="width: 100%; height: 350rpx;" mode='aspectFill'/>
-      </swiper-item>
-      </navigator>
-    </block>
-  </swiper>
+<!-- 每日推荐主区域 -->
+<view class="daily-recommend-container">
+  <!-- 顶部信息栏 -->
+  <view class="info-bar">
+    <view class="location-info" bindtap="refreshLocation">
+      <text class="location-icon">📍</text>
+      <text class="location-text">{{currentLocation || '获取位置中...'}}</text>
+      <text class="refresh-icon">🔄</text>
+    </view>
+    <view class="weather-info" bindtap="refreshWeather">
+      <text class="weather-icon">{{weatherIcon || '☀️'}}</text>
+      <text class="weather-text">{{weatherInfo || '获取天气中...'}}</text>
+      <text class="refresh-icon">🔄</text>
+    </view>
+  </view>
 
-<view class='mark'>
+  <!-- 每日推荐标题 -->
+  <view class="recommend-header">
+    <text class="recommend-title">每日推荐</text>
+    <text class="recommend-subtitle">AI为你量身定制今日穿搭</text>
+  </view>
 
-  <view class='mark1'>女士<image  src='{{w1}}' class='w1'  ></image></view>
-  <view class='mark1' bindtap='clickPages'>上装<image data-id="0" src='{{w2}}' class='w2'  ></image></view>
-  <view class='mark1' bindtap='clickPages'>下装<image data-id="1" src='{{w3}}' class='w3'  ></image></view>
-  <view class='mark1' bindtap='clickPages'>鞋子<image data-id="2" src='{{w4}}' class='w4'  ></image></view>
-  <view class='mark2'>男士<image  src='{{m1}}' class='m1'  ></image></view>
-  <view class='mark2' bindtap='clickPages'>上装<image data-id="3" src='{{m2}}' class='m2'  ></image></view>
-  <view class='mark2' bindtap='clickPages'>下装<image data-id="4" src='{{m3}}' class='m3'  ></image></view>
-  <view class='mark2' bindtap='clickPages'>鞋子<image data-id="5" src='{{m4}}' class='m4'  ></image></view>
-</view>
+  <!-- 推荐内容区域 -->
+  <view class="recommend-content">
+    <view wx:if="{{!hasRecommendation}}" class="no-recommendation">
+      <view class="no-recommendation-icon">👗</view>
+      <text class="no-recommendation-text">还没有今日推荐</text>
+      <text class="no-recommendation-desc">点击下方按钮开始生成</text>
+    </view>
+    
+    <view wx:else class="recommendation-card">
+      <view class="recommendation-image">
+        <image src="{{recommendationImage}}" mode="aspectFill" class="outfit-image"></image>
+        <view class="recommendation-overlay">
+          <text class="recommendation-style">{{recommendationStyle}}</text>
+        </view>
+      </view>
+      <view class="recommendation-info">
+        <text class="recommendation-title">{{recommendationTitle}}</text>
+        <text class="recommendation-desc">{{recommendationDesc}}</text>
+        <view class="recommendation-tags">
+          <text wx:for="{{recommendationTags}}" wx:key="index" class="tag">{{item}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
 
-<!-- 女士专区 -->
-<view class='line'></view>
-<view class='woman'>
-<view class='onlyw'>女士专区</view>
-<view class='wmore' bindtap='womanmore'>更多</view><icon class="iconfontw .icon-arrow-right-copy-copy-copy"></icon>
-</view>
-<view class='line'></view>
-<view class="wcontainer">
-	<view wx:for="{{wimageList}}" wx:for-index="index" wx:for-item="image" wx:key="index" class="wpreviewimg" bindtap="wdetails" >
-		<image src="{{image}}" data-src="{{image}}" mode='aspectFill' data-index="{{index}}"></image>
-	</view>
-</view>
+  <!-- 操作按钮区域 -->
+  <view class="action-buttons">
+    <button class="generate-btn" bindtap="generateRecommendation" disabled="{{isGenerating}}">
+      <text wx:if="{{!isGenerating}}">🎯 生成今日穿搭</text>
+      <text wx:else>生成中...</text>
+    </button>
+    <button class="refresh-btn" bindtap="refreshRecommendation" wx:if="{{hasRecommendation}}">
+      <text>🔄 换一套</text>
+    </button>
+  </view>
 
-<!-- 男士专区 -->
-<view class='line'></view>
-<view class='man'>
-<view class='onlym'>男士专区</view>
-<view class='mmore' bindtap='manmore'>更多</view><icon class="iconfontm .icon-arrow-right-copy-copy-copy"></icon>
+  <!-- 快速操作 -->
+  <view class="quick-actions">
+    <view class="quick-action-item" bindtap="goToWardrobe">
+      <text class="quick-action-icon">👔</text>
+      <text class="quick-action-text">我的衣橱</text>
+    </view>
+    <view class="quick-action-item" bindtap="goToShop">
+      <image class="quick-action-icon" src="/images/icon/weather.png" mode="aspectFit"></image>
+      <text class="quick-action-text">小铺</text>
+    </view>
+    <view class="quick-action-item" bindtap="goToHistory">
+      <text class="quick-action-icon">📅</text>
+      <text class="quick-action-text">历史推荐</text>
+    </view>
+  </view>
 </view>
-<view class='line'></view>
-<view class="mcontainer">
-	<view wx:for="{{mimageList}}" wx:for-index="index" wx:for-item="image" wx:key="index" class="mpreviewimg" bindtap="mdetails" >
-		<image src="{{image}}" data-src="{{image}}" mode='aspectFill' data-index="{{index}}"></image>
-	</view>
-</view>
-<view style='width:100%;'><view style="margin:10px 0; color:#a1a0a0;font-size:12px;text-align:center;">图片来自网络，若有侵权请联系开发者</view></view>

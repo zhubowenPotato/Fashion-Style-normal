@@ -1,19 +1,43 @@
 <!--pages/authorize/authorize.wxml-->
-<view wx:if="{{canIUse}}">
+<view class='container'>
     <view class='header'>
         <image src='https://gitee.com/huanchi/wear_fashionstyle/raw/master/image/logo.png'></image>
     </view>
 
     <view class='content'>
-        <view class='content1'>申请获取以下权限</view>
-        <text>获得你的公开信息(昵称，头像等)</text>
+        <view class='content1'>设置您的个人信息</view>
+        <text>请选择头像并输入昵称</text>
+    </view>
+
+    <!-- 用户信息设置区域 -->
+    <view class='user-info-section'>
+        <!-- 头像选择 -->
+        <view class='avatar-section'>
+            <text class='label'>选择头像</text>
+            <button class='avatar-btn' open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+                <image class='avatar-preview' src="{{userInfo.avatarUrl || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+            </button>
+        </view>
+
+        <!-- 昵称输入 -->
+        <view class='nickname-section'>
+            <text class='label'>输入昵称</text>
+            <input class='nickname-input' 
+                   type="nickname" 
+                   placeholder="请输入您的昵称" 
+                   value="{{userInfo.nickName || ''}}" 
+                   bindinput="onNicknameInput" 
+                   maxlength="20" />
+        </view>
     </view>
  
-    <button class='bottom' type='primary' open-type="getUserInfo" lang="zh_CN" bindgetuserinfo="bindGetUserInfo">
-        授权登录
+    <button class='bottom' type='primary' bindtap="saveUserInfo">
+        完成设置
     </button>
+    
+    <view class='tips'>
+        <text>请完善您的头像和昵称信息</text>
+    </view>
 </view>
- 
-<view wx:else>请升级微信版本</view>
 
 

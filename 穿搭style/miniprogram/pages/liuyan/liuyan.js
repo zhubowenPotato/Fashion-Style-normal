@@ -289,23 +289,41 @@ Page({
   //加载最新数据
   onLoad: function () {
     var that = this
-    wx.getSetting({
-      success(res) {
-        if (res.authSetting['scope.userInfo']) {
-          // 已经授权，可以直接调用 getUserInfo 获取头像昵称
-          wx.getUserInfo({
-            success: function (res) {
-              // console.log(res.userInfo),
+    // 优先从全局数据获取用户信息
+    const app = getApp();
+    if (app.globalData.userInfo) {
+      that.setData({
+        userName: app.globalData.userInfo.nickName,
+        nickName: app.globalData.userInfo.nickName,
+        avatarUrl: app.globalData.userInfo.avatarUrl,
+      })
+    } else if (wx.getStorageSync('userInfo')) {
+      const userInfo = wx.getStorageSync('userInfo');
+      that.setData({
+        userName: userInfo.nickName,
+        nickName: userInfo.nickName,
+        avatarUrl: userInfo.avatarUrl,
+      })
+    } else {
+      // 如果都没有，尝试获取用户信息
+      wx.getSetting({
+        success(res) {
+          if (res.authSetting['scope.userInfo']) {
+            // 已经授权，可以直接调用 getUserInfo 获取头像昵称
+            wx.getUserInfo({
+              success: function (res) {
+                console.log('留言页面获取用户信息成功:', res.userInfo)
                 that.setData({
-                 userName: res.userInfo.nickName,
+                  userName: res.userInfo.nickName,
                   nickName: res.userInfo.nickName,
                   avatarUrl: res.userInfo.avatarUrl,
                 })
-            }
-          })
+              }
+            })
+          }
         }
-      }
-    })
+      })
+    }
     const db = wx.cloud.database()
     db.collection('liuyan').where({
     }).get({

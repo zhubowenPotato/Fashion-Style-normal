@@ -1,0 +1,13 @@
+{
+  "name": "aiRecognition",
+  "version": "1.0.0",
+  "description": "AI衣服识别云函数",
+  "main": "index.js",
+  "cloudfunction": {
+    "timeout": 15
+  },
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3",
+    "node-fetch": "^2.6.7"
+  }
+}

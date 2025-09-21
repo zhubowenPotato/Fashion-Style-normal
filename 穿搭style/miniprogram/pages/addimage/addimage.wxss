@@ -344,3 +344,195 @@ margin-right:8px;
 width:8%;
 margin-left:6px;
 }
+
+/* AI识别进度弹窗 */
+.ai-recognition-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.ai-recognition-modal.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.recognition-content {
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 40rpx;
+  text-align: center;
+  min-width: 300rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
+}
+
+.recognition-icon {
+  margin-bottom: 20rpx;
+}
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #f3f3f3;
+  border-top: 4rpx solid #ff6b9d;
+  border-radius: 50%;
+  animation: spin 1s linear infinite, pulse 2s ease-in-out infinite;
+  margin: 0 auto;
+  position: relative;
+}
+
+.loading-spinner::before {
+  content: '';
+  position: absolute;
+  top: -8rpx;
+  left: -8rpx;
+  right: -8rpx;
+  bottom: -8rpx;
+  border: 2rpx solid rgba(255, 107, 157, 0.3);
+  border-radius: 50%;
+  animation: ripple 2s ease-out infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% { 
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.recognition-text {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 10rpx;
+  animation: textGlow 2s ease-in-out infinite;
+}
+
+.recognition-progress {
+  display: block;
+  font-size: 24rpx;
+  color: #ff6b9d;
+  font-weight: bold;
+  animation: progressGlow 1s ease-in-out infinite;
+}
+
+@keyframes textGlow {
+  0%, 100% { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: translateY(-2rpx);
+  }
+}
+
+@keyframes progressGlow {
+  0%, 100% { 
+    color: #ff6b9d;
+    text-shadow: 0 0 0 rgba(255, 107, 157, 0);
+  }
+  50% { 
+    color: #ff4081;
+    text-shadow: 0 0 10rpx rgba(255, 107, 157, 0.5);
+  }
+}
+
+/* AI识别结果提示 */
+.ai-result-tip {
+  position: fixed;
+  top: 20rpx;
+  left: 20rpx;
+  right: 20rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12rpx;
+  padding: 20rpx;
+  z-index: 1000;
+  transform: translateY(-100rpx);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.ai-result-tip.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.ai-result-content {
+  display: flex;
+  align-items: center;
+  color: #fff;
+}
+
+.ai-result-icon {
+  font-size: 40rpx;
+  margin-right: 20rpx;
+}
+
+.ai-result-text {
+  flex: 1;
+}
+
+.ai-result-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: bold;
+  margin-bottom: 8rpx;
+}
+
+.ai-result-detail {
+  display: block;
+  font-size: 24rpx;
+  margin-bottom: 4rpx;
+  opacity: 0.9;
+}
+
+.ai-result-tags {
+  display: block;
+  font-size: 22rpx;
+  opacity: 0.8;
+}
+
+/* 搭配建议样式 */
+.styling-advice {
+  height: auto !important;
+  min-height: 37px;
+  line-height: 1.4;
+  padding: 10px 15px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background-color: #f8f9fa;
+  border: 1px solid #e3f2fd;
+  color: #1976d2;
+  font-size: 13px;
+}

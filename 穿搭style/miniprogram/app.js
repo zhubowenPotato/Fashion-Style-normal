@@ -15,6 +15,7 @@ App({
       console.error('请使用 2.2.3 或以上的基础库以使用云能力')
     } else {
       wx.cloud.init({
+        env: 'cloud1-5g2ffclu18317b9c',
         traceUser: true,
       })
     }
@@ -24,44 +25,129 @@ App({
     var logs = wx.getStorageSync('logs') || []
     logs.unshift(Date.now())
     wx.setStorageSync('logs', logs)
-    // 登录
-    wx.login({
-      success: res => {
-        // 发送 res.code 到后台换取 openId, sessionKey, unionId
-      }
-    })
+    
+    // 获取用户openid和unionid
+    this.getUserOpenId()
+    
+    // 获取地理位置
     wx.getLocation({
       success: res => {
         console.log(res,'地理位置')
       }
     })
-//     // 获取用户信息
-//     wx.getSetting({
-//       success: res => {
-//         if (res.authSetting['scope.userInfo']) {
-//           // 已经授权，可以直接调用 getUserInfo 获取头像昵称，不会弹框
-//           wx.getUserInfo({
-//             success: res => {
-//               // console.log(res)
-//               // 可以将 res 发送给后台解码出 unionId
-//               this.globalData.userInfo = res.userInfo
-// console.log();
-//               // 由于 getUserInfo 是网络请求，可能会在 Page.onLoad 之后才返回
-//               // 所以此处加入 callback 以防止这种情况
-//               if (this.userInfoReadyCallback) {
-//                 this.userInfoReadyCallback(res)
-//               }
-//             }
-//           })
-//         }else{
-//           wx.reLaunch({
-//             url: '/pages/authorize/authorize',
-//           })
-//         }
-//       }
-//     })
     
+    // 检查用户授权状态
+    this.checkUserAuth()
   },
+  
+  // 获取用户openid和unionid
+  getUserOpenId: function() {
+    const that = this
+    wx.cloud.callFunction({
+      name: 'login',
+      data: {},
+      success: res => {
+        console.log('云函数调用成功，完整返回结果:', res)
+        console.log('云函数返回的result:', res.result)
+        
+        // 检查云函数返回结果
+        if (res.result && res.result.success && res.result.openid) {
+          console.log('用户登录成功:', res.result)
+          that.globalData.openid = res.result.openid
+          that.globalData.unionid = res.result.unionid || ''
+          that.globalData.appid = res.result.appid || ''
+          console.log('OpenID获取成功:', res.result.openid)
+        } else {
+          console.error('云函数返回结果异常:', res.result)
+          // 如果云函数失败，尝试其他方式获取openid
+          that.getOpenIdByWxLogin()
+        }
+      },
+      fail: err => {
+        console.error('获取用户openid失败:', err)
+        // 云函数失败时，尝试其他方式
+        that.getOpenIdByWxLogin()
+      }
+    })
+  },
+  
+  // 备用方案：通过wx.login获取openid
+  getOpenIdByWxLogin: function() {
+    const that = this
+    wx.login({
+      success: res => {
+        if (res.code) {
+          console.log('获取code成功:', res.code)
+          // 这里可以调用自己的服务器接口，用code换取openid
+          // 或者直接使用code作为临时标识
+          that.globalData.openid = res.code
+          that.globalData.unionid = ''
+          that.globalData.appid = ''
+        } else {
+          console.error('获取code失败:', res.errMsg)
+        }
+      },
+      fail: err => {
+        console.error('wx.login失败:', err)
+      }
+    })
+  },
+  
+  // 检查用户授权状态
+  checkUserAuth: function() {
+    const that = this
+    // 检查本地存储是否有用户信息
+    const userInfo = wx.getStorageSync('userInfo')
+    if (userInfo) {
+      console.log('从本地存储获取用户信息:', userInfo)
+      that.globalData.userInfo = userInfo
+      // 触发回调
+      if (that.userInfoReadyCallback) {
+        that.userInfoReadyCallback({ userInfo: userInfo })
+      }
+    } else {
+      console.log('用户未授权，需要引导授权')
+    }
+  },
+  
+  // 获取用户详细信息 - 注意：getUserProfile 已无法获取真实昵称和头像
+  getUserInfo: function() {
+    const that = this
+    wx.getUserProfile({
+      desc: '用于完善用户资料',
+      success: res => {
+        console.log('getUserProfile 返回结果:', res.userInfo)
+        console.log('注意：nickName 和 avatarUrl 已无法获取真实信息')
+        
+          // 清理用户信息，处理可能的编码问题
+          const cleanUserInfo = {
+            nickName: '微信用户', // getUserProfile 已无法获取真实昵称
+            avatarUrl: '/images/default-avatar.svg', // getUserProfile 已无法获取真实头像
+            gender: res.userInfo.gender || 0,
+            country: res.userInfo.country || '',
+            province: res.userInfo.province || '',
+            city: res.userInfo.city || '',
+            language: res.userInfo.language || 'zh_CN'
+          };
+        
+        console.log('清理后的用户信息:', cleanUserInfo);
+        
+        that.globalData.userInfo = cleanUserInfo
+        // 保存到本地存储
+        wx.setStorageSync('userInfo', cleanUserInfo)
+        // 触发回调
+        if (that.userInfoReadyCallback) {
+          that.userInfoReadyCallback({...res, userInfo: cleanUserInfo})
+        }
+      },
+      fail: err => {
+        console.error('获取用户信息失败:', err)
+      }
+    })
+  },
+  
+  // 用户信息获取完成回调
+  userInfoReadyCallback: null,
   globalData: {
     userInfo: null,
     urlPath: "https://www.baidu.com/",

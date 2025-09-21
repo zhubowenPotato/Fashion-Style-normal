@@ -36,6 +36,17 @@
     </picker>
   </view>
 </view>
+
+<!-- AI搭配建议显示 -->
+<view class='styleclass' wx:if="{{isAIRecognized}}">
+  <view class="label">搭配建议</view>
+  <view class='textstyle'>
+    <view class='styleborder styling-advice'>
+      <text>{{stylingAdvice}}</text>
+    </view>
+  </view>
+</view>
+
 <!-- 分类 -->
 
 <view class='classify'>
@@ -146,5 +157,28 @@
         <text class='includemin'>小提示：</text>上传成功后你的穿搭图片是直接展示出来的，可以去搜索到</view>
     </view>
     <view bindtap="ok" class="ok">好的</view>
+  </view>
+</view>
+
+<!-- AI识别进度弹窗 -->
+<view class="ai-recognition-modal {{showAIRecognition ? 'show' : ''}}">
+  <view class="recognition-content">
+    <view class="recognition-icon">
+      <view class="loading-spinner"></view>
+    </view>
+    <text class="recognition-text">AI正在识别衣物类型...</text>
+    <text class="recognition-progress">{{recognitionProgress}}%</text>
+  </view>
+</view>
+
+<!-- AI识别结果提示 -->
+<view class="ai-result-tip {{isAIRecognized ? 'show' : ''}}" wx:if="{{aiResult}}">
+  <view class="ai-result-content">
+    <view class="ai-result-icon">🤖</view>
+    <view class="ai-result-text">
+      <text class="ai-result-title">AI智能识别完成</text>
+      <text class="ai-result-detail">已自动分类为：{{aiResult.categoryName}} - {{aiResult.itemName}}</text>
+      <text class="ai-result-tags">标签：{{aiResult.tags}}</text>
+    </view>
   </view>
 </view>

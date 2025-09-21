@@ -1,36 +1,126 @@
 
 
-<!-- 搜索框模块 -->
-<view class="weui-search-bar">
-	<view class="weui-search-bar__form">
-		<view class="weui-search-bar__box">
-			<icon class="weui-icon-search_in-box" type="search" size="15"></icon>
-			<input type="text" class="weui-search-bar__input" disabled='true' placeholder="搜索入口" bindtap="wxSearchTab" />
-			<image src='https://gitee.com/huanchi/wear_fashionstyle/raw/master/image/media.png' class='media' bindtap='media'></image>
-			<!-- 颜色提取 -->
-		</view>
-	</view>
-</view>
-<view style="margin-top:70px;">
-	<view wx:for="{{bannerList}}" wx:for-index="index" wx:for-item="item" wx:key="index" >
-		<view class="ban-list" wx:if="{{index%2==0}}" bindtap='clickPages' data-id='{{index}}'>
-			<view class=" {{ 'ban-url' + index}}">
-				<image src="{{item.url}}" mode="aspectFill"></image>
-			</view>
-			<view class="ban-item">
-				<view class="ban-title">{{item.title}}</view>
-				<view class="ban-english">{{item.english}}</view>
-			</view>
-		</view>
-		<view class="ban-list" data-name='{{item.title}}' data-id='{{index}}'  bindtap='clickPages' wx:else>
-			<view class="ban-item">
-				<view class="ban-title">{{item.title}}</view>
-				<view class="ban-english">{{item.english}}</view>
-			</view>
-			<view class=" {{ 'ban-url' + index}}">
-				<image src="{{item.url}}" mode="aspectFill"></image>
-			</view>
-		</view>
+<!-- 衣橱页面 - 现代化左右分栏布局 -->
+<view class="wardrobe-container">
+  <!-- 顶部搜索栏 -->
+  <view class="search-header">
+    <view class="search-bar">
+      <icon class="search-icon" type="search" size="16"></icon>
+      <input class="search-input" placeholder="搜索我的衣橱" bindtap="onSearchTap" />
+    </view>
+    <view class="add-btn" bindtap="showAddMenu">
+      <icon type="plus" size="20" color="#fff"></icon>
+    </view>
+  </view>
 
-	</view>
+  <!-- 主要内容区域 -->
+  <view class="main-content">
+    <!-- 左侧分类栏 -->
+    <view class="category-sidebar">
+      <scroll-view class="category-list" scroll-y="true">
+        <view 
+          wx:for="{{categories}}" 
+          wx:key="id" 
+          class="category-item {{currentCategoryId === item.id ? 'active' : ''}}"
+          bindtap="switchCategory"
+          data-id="{{item.id}}"
+        >
+          <view class="category-icon">
+            <image src="{{item.icon}}" mode="aspectFit"></image>
+          </view>
+          <text class="category-name">{{item.name}}</text>
+          <text class="category-count">{{item.count}}</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 右侧物品展示区 -->
+    <view class="items-content">
+      <view class="content-header">
+        <text class="category-title">{{currentCategoryName}}</text>
+        <text class="item-count">{{currentItemCount}}件</text>
+      </view>
+      
+      <scroll-view class="items-grid" scroll-y="true">
+        <view wx:if="{{currentItems.length === 0}}" class="empty-state">
+          <view class="empty-icon-container">
+            <icon class="empty-icon" type="photo" size="80" color="#ff6b9d"></icon>
+          </view>
+          <text class="empty-text">暂无{{currentCategoryName}}，点击右上角添加</text>
+        </view>
+        
+        <view wx:else class="items-list">
+          <view 
+            wx:for="{{currentItems}}" 
+            wx:key="id" 
+            class="item-card"
+            bindlongpress="showItemMenu"
+            data-item="{{item}}"
+          >
+            <view class="item-image-container">
+              <image class="item-image" src="{{item.image}}" mode="aspectFill"></image>
+              <!-- AI识别标识 -->
+              <view class="ai-badge" wx:if="{{item.aiGenerated}}">
+                <text class="ai-badge-text">AI</text>
+              </view>
+              <!-- 置信度标识 -->
+              <view class="confidence-badge" wx:if="{{item.confidence && item.confidence > 0.8}}">
+                <text class="confidence-text">{{Math.round(item.confidence * 100)}}%</text>
+              </view>
+              <view class="item-overlay">
+                <view class="item-actions">
+                  <view class="action-btn edit-btn" bindtap="editItem" data-item="{{item}}">
+                    <icon type="edit" size="14" color="#fff"></icon>
+                  </view>
+                  <view class="action-btn delete-btn" bindtap="deleteItem" data-item="{{item}}">
+                    <icon type="clear" size="14" color="#fff"></icon>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <view class="item-info">
+              <view class="item-name-row">
+                <text class="item-name">{{item.name}}</text>
+                <view class="ai-icon" wx:if="{{item.aiGenerated}}">🤖</view>
+              </view>
+              <text class="item-tags">{{item.tags}}</text>
+              <view class="item-details" wx:if="{{item.style || item.color}}">
+                <text class="item-style" wx:if="{{item.style}}">{{item.style}}</text>
+                <text class="item-color" wx:if="{{item.color}}">{{item.color}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>
+
+<!-- 添加菜单弹窗 -->
+<view class="add-menu-modal {{showAddMenu ? 'show' : ''}}" bindtap="hideAddMenu">
+  <view class="add-menu-content" catchtap="">
+    <view class="menu-title">添加衣物</view>
+    <view class="menu-options">
+      <view class="menu-option" bindtap="chooseFromAlbum">
+        <icon type="photo" size="24" color="#666"></icon>
+        <text>从相册选择</text>
+      </view>
+      <view class="menu-option" bindtap="takePhoto">
+        <icon type="camera" size="24" color="#666"></icon>
+        <text>拍照添加</text>
+      </view>
+    </view>
+    <view class="menu-cancel" bindtap="hideAddMenu">取消</view>
+  </view>
+</view>
+
+<!-- AI识别进度弹窗 -->
+<view class="ai-recognition-modal {{showAIRecognition ? 'show' : ''}}">
+  <view class="recognition-content">
+    <view class="recognition-icon">
+      <view class="loading-spinner"></view>
+    </view>
+    <text class="recognition-text">AI正在识别衣物类型...</text>
+    <text class="recognition-progress">{{recognitionProgress}}%</text>
+  </view>
 </view>

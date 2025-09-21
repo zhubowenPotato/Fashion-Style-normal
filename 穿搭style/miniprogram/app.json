@@ -52,13 +52,13 @@
       },
       {
         "pagePath": "pages/class/class",
-        "text": "分类",
+        "text": "衣橱",
         "iconPath": "images/icon/class.png",
         "selectedIconPath": "images/icon/class1.png"
       },
      {
       "pagePath": "pages/weather/weather",
-      "text": "天气",
+      "text": "小铺",
       "iconPath": "images/icon/weather.png",
       "selectedIconPath": "images/icon/wether2.png"
     },

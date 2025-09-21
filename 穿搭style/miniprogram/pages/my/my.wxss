@@ -17,14 +17,46 @@
   align-items: center;
 }
 
+/* 头像按钮样式 */
+.avatar-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+}
+
+.avatar-btn::after {
+  border: none;
+}
+
 .userinfo-avatar {
   width: 70px;
-height: 70px;
-margin: 20rpx;
-margin-bottom: 6rpx;
-border-radius: 50%;
-border: 2px solid #fff;
+  height: 70px;
+  margin: 20rpx;
+  margin-bottom: 6rpx;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  display: block;
+}
 
+/* 昵称输入框样式 */
+.nickname-input {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20rpx;
+  padding: 10rpx 20rpx;
+  color: #fff;
+  font-size: 28rpx;
+  text-align: center;
+  margin: 10rpx 0;
+  min-width: 200rpx;
+}
+
+.nickname-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
 }
 .i-header{
   height: 350rpx;
@@ -38,4 +70,313 @@ border: 2px solid #fff;
 }
 .userinfo-nickname{
   color: #fff;
+}
+
+/* 风格标签选择区域 */
+.tags-section {
+  margin: 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+}
+
+.section-header {
+  padding: 32rpx 32rpx 24rpx;
+  background: linear-gradient(135deg, #f8f9fa, #ffffff);
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.section-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 8rpx;
+}
+
+.section-subtitle {
+  font-size: 26rpx;
+  color: #8a8a8a;
+  line-height: 1.4;
+}
+
+.tags-container {
+  padding: 24rpx 32rpx 32rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.tag-item {
+  position: relative;
+  padding: 16rpx 24rpx;
+  background: #f7f8fa;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  color: #4a4a4a;
+  border: 2rpx solid #f0f0f0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.tag-item:active {
+  transform: scale(0.98);
+}
+
+.tag-item.selected {
+  background: #07c160;
+  color: #fff;
+  border-color: #07c160;
+  box-shadow: 0 4rpx 12rpx rgba(7, 193, 96, 0.3);
+}
+
+.tag-item.custom-tag {
+  background: #e8f4fd;
+  color: #1976d2;
+  border-color: #bbdefb;
+}
+
+.tag-item.custom-tag.selected {
+  background: #07c160;
+  color: #fff;
+  border-color: #07c160;
+}
+
+.tag-item.add-tag {
+  background: #fff;
+  color: #07c160;
+  border: 2rpx dashed #07c160;
+  justify-content: center;
+  min-width: 160rpx;
+}
+
+.tag-item.add-tag:active {
+  background: #f0f9f4;
+}
+
+.add-icon {
+  font-size: 28rpx;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.add-text {
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+/* 删除按钮样式 */
+.tag-delete-btn {
+  position: absolute;
+  top: -6rpx;
+  right: -6rpx;
+  width: 28rpx;
+  height: 28rpx;
+  background: #ff4757;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18rpx;
+  font-weight: bold;
+  line-height: 1;
+  z-index: 10;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.tag-delete-btn:active {
+  transform: scale(0.9);
+  background: #ff3742;
+}
+
+/* 添加标签弹窗 */
+.add-tag-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.add-tag-modal.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  width: 640rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.add-tag-modal.show .modal-content {
+  transform: scale(1);
+}
+
+.modal-header {
+  padding: 32rpx 32rpx 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.close-btn {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  color: #8a8a8a;
+  border-radius: 50%;
+  background: #f7f8fa;
+}
+
+.close-btn:active {
+  background: #e8e8e8;
+}
+
+.modal-body {
+  padding: 32rpx;
+  min-height: 120rpx;
+}
+
+.tag-input {
+  width: 100%;
+  padding: 24rpx;
+  border: 2rpx solid #e0e0e0;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  background: #fafafa;
+  box-sizing: border-box;
+  min-height: 80rpx;
+  line-height: 1.4;
+  word-wrap: break-word;
+  word-break: break-all;
+}
+
+.tag-input:focus {
+  border-color: #07c160;
+  background: #fff;
+}
+
+.input-tips {
+  font-size: 24rpx;
+  color: #8a8a8a;
+  margin-top: 16rpx;
+  text-align: center;
+}
+
+.modal-footer {
+  padding: 24rpx 32rpx 32rpx;
+  display: flex;
+  gap: 24rpx;
+}
+
+.cancel-btn, .confirm-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cancel-btn {
+  background: #f7f8fa;
+  color: #4a4a4a;
+}
+
+.cancel-btn:active {
+  background: #e8e8e8;
+}
+
+.confirm-btn {
+  background: #07c160;
+  color: #fff;
+}
+
+.confirm-btn:active {
+  background: #06ad56;
+}
+
+/* 形象照功能样式 */
+.profile-photo-cell {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.profile-photo-label {
+  font-size: 32rpx;
+  color: #1a1a1a;
+  font-weight: 500;
+  min-width: 120rpx;
+}
+
+.profile-photo-preview {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  position: relative;
+  border: 2rpx solid #e0e0e0;
+}
+
+.profile-photo-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.profile-photo-placeholder {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 12rpx;
+  background: #f7f8fa;
+  border: 2rpx dashed #d0d0d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+
+.photo-delete-hint {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 18rpx;
+  text-align: center;
+  padding: 4rpx 0;
+  line-height: 1;
+  border-radius: 0 0 10rpx 10rpx;
 }
