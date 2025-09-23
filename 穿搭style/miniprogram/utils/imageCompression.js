@@ -37,6 +37,21 @@ class ImageCompression {
       const base64 = await this.fileToBase64(compressedPath);
       console.log('转换为base64完成，大小:', base64.length, 'bytes');
       
+      // 验证压缩结果
+      const maxSize = options.maxSize || this.maxSize;
+      if (base64.length > maxSize) {
+        console.warn(`压缩后大小 ${base64.length} bytes 仍超过目标大小 ${maxSize} bytes`);
+        // 如果还是太大，进一步降低质量重试
+        if (compressOptions.quality > 0.3) {
+          console.log('尝试进一步压缩...');
+          const newOptions = { ...compressOptions, quality: Math.max(0.3, compressOptions.quality - 0.2) };
+          const newCompressedPath = await this.performCompression(filePath, newOptions);
+          const newBase64 = await this.fileToBase64(newCompressedPath);
+          console.log('进一步压缩完成，大小:', newBase64.length, 'bytes');
+          return newBase64;
+        }
+      }
+      
       return base64;
       
     } catch (error) {
@@ -77,7 +92,12 @@ class ImageCompression {
    */
   calculateCompressOptions(imageInfo, options = {}) {
     const { width, height } = imageInfo;
-    const { quality = this.quality, maxWidth = this.maxWidth, maxHeight = this.maxHeight } = options;
+    const { 
+      quality = this.quality, 
+      maxWidth = this.maxWidth, 
+      maxHeight = this.maxHeight,
+      maxSize = this.maxSize 
+    } = options;
     
     // 计算缩放比例
     let scale = 1;
@@ -89,17 +109,17 @@ class ImageCompression {
     const targetWidth = Math.floor(width * scale);
     const targetHeight = Math.floor(height * scale);
     
-    // 根据图片大小调整质量
+    // 根据目标大小调整质量
     let finalQuality = quality;
-    const estimatedSize = (width * height * 3 * quality) / 1024; // 估算KB
+    const estimatedSize = (targetWidth * targetHeight * 3 * quality) / 1024; // 估算KB
     
-    if (estimatedSize > 500) {
-      finalQuality = 0.6; // 大图片降低质量
-    } else if (estimatedSize > 300) {
-      finalQuality = 0.7;
-    } else if (estimatedSize > 200) {
-      finalQuality = 0.8;
+    // 如果估算大小超过目标大小，进一步降低质量
+    if (estimatedSize > maxSize / 1024) {
+      finalQuality = Math.max(0.3, (maxSize / 1024) / (targetWidth * targetHeight * 3) * 1024);
     }
+    
+    // 确保质量在合理范围内
+    finalQuality = Math.max(0.3, Math.min(0.9, finalQuality));
     
     return {
       quality: finalQuality,

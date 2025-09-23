@@ -112,20 +112,104 @@ Page({
    * 初始化数据
    */
   initData: function() {
-    this.updateCategoryCounts();
+    this.loadUserClothes();
+  },
+
+  /**
+   * 从数据库加载用户衣物数据
+   */
+  loadUserClothes: function() {
+    const that = this;
+    const app = getApp();
+    const openid = app.globalData.openid;
     
-    // 默认显示第一个分类
-    const categoryId = 1;
-    const category = this.data.categories.find(cat => cat.id === categoryId);
-    if (category) {
-      const currentItems = this.data.allItems.filter(item => item.categoryId === categoryId);
-      this.setData({
-        currentCategoryId: categoryId,
-        currentCategoryName: category.name,
-        currentItemCount: currentItems.length,
-        currentItems: currentItems
+    if (!openid) {
+      console.error('用户openid不存在，无法加载数据');
+      wx.showToast({
+        title: '用户信息异常，请重新登录',
+        icon: 'none',
+        duration: 2000
       });
+      return;
     }
+    
+    wx.showLoading({
+      title: '加载中...'
+    });
+    
+    const db = wx.cloud.database();
+    db.collection("clothes")
+      .where({
+        _openid: openid,
+        isDeleted: false
+      })
+      .orderBy('createTime', 'desc')
+      .get()
+      .then(res => {
+        console.log('从数据库加载衣物数据:', res);
+        
+        // 分类ID到分类名称的映射
+        const categoryNames = {
+          1: '上衣',
+          2: '外套', 
+          3: '裙装',
+          4: '裤装',
+          5: '鞋子',
+          6: '配饰',
+          7: '内衣'
+        };
+        
+        const allItems = res.data.map(item => {
+          const categoryId = item.categoryId || 1;
+          const categoryName = categoryNames[categoryId] || item.classify || '未分类';
+          
+          return {
+            id: item._id,
+            categoryId: categoryId,
+            classify: categoryName, // 确保classify字段存在
+            name: item.name || '未命名',
+            image: item.url || '',
+            tags: item.tags || `${item.style || '未知'} ${item.color || '未知'}`,
+            style: item.style || '未知',
+            color: item.color || '未知',
+            confidence: item.confidence || 0,
+            aiGenerated: item.aiGenerated || false,
+            addTime: item.addTime || new Date().toISOString().split('T')[0],
+            createTime: item.createTime || new Date(),
+            stylingAdvice: item.stylingAdvice || '建议搭配基础款单品'
+          };
+        });
+        
+        that.setData({
+          allItems: allItems
+        });
+        
+        that.updateCategoryCounts();
+        
+        // 默认显示第一个分类
+        const categoryId = that.data.currentCategoryId || 1;
+        const category = that.data.categories.find(cat => cat.id === categoryId);
+        if (category) {
+          const currentItems = allItems.filter(item => item.categoryId === categoryId);
+          that.setData({
+            currentCategoryId: categoryId,
+            currentCategoryName: category.name,
+            currentItemCount: currentItems.length,
+            currentItems: currentItems
+          });
+        }
+        
+        wx.hideLoading();
+      })
+      .catch(error => {
+        console.error('加载衣物数据失败:', error);
+        wx.hideLoading();
+        wx.showToast({
+          title: '加载数据失败',
+          icon: 'none',
+          duration: 2000
+        });
+      });
   },
 
   /**
@@ -228,31 +312,8 @@ Page({
       recognitionProgress: 0
     });
 
-    // 立即开始进度条动画，让用户感受到即时反馈
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-      // 使用更平滑的进度递增，模拟真实的AI识别过程
-      if (progress < 20) {
-        progress += Math.random() * 3 + 1; // 初始阶段快速增长
-      } else if (progress < 60) {
-        progress += Math.random() * 2 + 0.5; // 中期阶段中等速度
-      } else if (progress < 90) {
-        progress += Math.random() * 1 + 0.3; // 后期阶段较慢
-      } else {
-        progress += Math.random() * 0.5 + 0.1; // 最后阶段很慢
-      }
-      
-      // 确保进度不超过95%，留5%给实际完成
-      progress = Math.min(progress, 95);
-      
-      that.setData({ recognitionProgress: Math.floor(progress) });
-      
-      // 当进度达到95%时，开始实际的AI识别
-      if (progress >= 95) {
-        clearInterval(progressInterval);
-        that.performAIRecognition(imagePath);
-      }
-    }, 100); // 更频繁的更新，让动画更流畅
+    // 立即开始AI识别，使用真实的进度回调
+    that.performAIRecognition(imagePath);
   },
 
   /**
@@ -287,8 +348,15 @@ Page({
       return;
     }
     
+    // 进度回调函数
+    const onProgress = (progressData) => {
+      that.setData({
+        recognitionProgress: Math.floor(progressData.progress) // 确保进度值取整
+      });
+    };
+    
     // 调用AI识别服务
-    that.data.aiRecognition.recognizeClothing(imagePath).then(result => {
+    that.data.aiRecognition.recognizeClothing(imagePath, {}, onProgress).then(result => {
       console.log('AI识别结果:', result);
       
       // 先完成进度条到100%
@@ -301,41 +369,9 @@ Page({
           showAIRecognition: false
         });
         
-        // 添加新物品
-        const newItem = {
-          id: Date.now(),
-          categoryId: result.categoryId,
-          name: result.itemName,
-          image: imagePath,
-          tags: result.tags,
-          style: result.style,
-          color: result.color,
-          confidence: result.confidence,
-          aiGenerated: result.aiGenerated,
-          addTime: new Date().toISOString().split('T')[0]
-        };
+        // 保存到数据库 - 使用result.data而不是result
+        that.saveAIRecognitionToDatabase(imagePath, result.data);
         
-        const allItems = [...that.data.allItems, newItem];
-        that.setData({ allItems });
-        that.updateCategoryCounts();
-        
-        // 切换到新添加物品的分类
-        const categoryId = result.categoryId;
-        const category = that.data.categories.find(cat => cat.id === categoryId);
-        if (category) {
-          const currentItems = allItems.filter(item => item.categoryId === categoryId);
-          that.setData({
-            currentCategoryId: categoryId,
-            currentCategoryName: category.name,
-            currentItemCount: currentItems.length,
-            currentItems: currentItems
-          });
-        }
-        
-        wx.showToast({
-          title: 'AI识别完成，添加成功！',
-          icon: 'success'
-        });
       }, 300);
       
     }).catch(error => {
@@ -392,10 +428,33 @@ Page({
    * 编辑物品
    */
   editItem: function(e) {
+    console.log('=== 开始编辑物品 ===');
+    console.log('事件对象:', e);
+    
+    if (!e || !e.currentTarget || !e.currentTarget.dataset) {
+      console.error('editItem: 事件对象或dataset不存在');
+      wx.showToast({
+        title: '编辑失败，请重试',
+        icon: 'none'
+      });
+      return;
+    }
+    
     const item = e.currentTarget.dataset.item;
+    console.log('要编辑的物品:', item);
+    
+    if (!item) {
+      console.error('editItem: 物品数据不存在');
+      wx.showToast({
+        title: '物品数据异常',
+        icon: 'none'
+      });
+      return;
+    }
+    
     wx.showModal({
       title: '编辑物品',
-      content: '编辑功能开发中',
+      content: `编辑功能开发中\n物品: ${item.name || '未命名'}`,
       showCancel: false
     });
   },
@@ -407,33 +466,131 @@ Page({
     const item = e.currentTarget.dataset.item;
     const that = this;
     
+    console.log('=== 开始删除物品 ===');
+    console.log('要删除的物品:', item);
+    console.log('物品图片URL (image字段):', item.image);
+    console.log('物品图片URL (url字段):', item.url);
+    
+    // 优先使用image字段，如果没有则使用url字段
+    const imageUrl = item.image || item.url;
+    console.log('最终使用的图片URL:', imageUrl);
+    
     wx.showModal({
       title: '确认删除',
-      content: '确定要删除这件衣物吗？',
+      content: '确定要删除这件衣物吗？删除后无法恢复。',
       success: function(res) {
         if (res.confirm) {
-          const allItems = that.data.allItems.filter(i => i.id !== item.id);
-          that.setData({ allItems });
-          that.updateCategoryCounts();
+          wx.showLoading({
+            title: '删除中...'
+          });
           
-          // 刷新当前分类显示
-          const categoryId = that.data.currentCategoryId;
-          const category = that.data.categories.find(cat => cat.id === categoryId);
-          if (category) {
-            const currentItems = allItems.filter(item => item.categoryId === categoryId);
-            that.setData({
-              currentCategoryId: categoryId,
-              currentCategoryName: category.name,
-              currentItemCount: currentItems.length,
-              currentItems: currentItems
+          // 先删除云存储中的图片文件
+          that.deleteCloudStorageImage(imageUrl, function(imageDeleteSuccess) {
+            console.log('云存储删除结果:', imageDeleteSuccess);
+            
+            // 然后从数据库中删除记录
+            const db = wx.cloud.database();
+            db.collection("clothes").doc(item.id).remove({
+              success: function(deleteRes) {
+                console.log('从数据库删除成功:', deleteRes);
+                wx.hideLoading();
+                
+                // 重新加载数据
+                that.loadUserClothes();
+                
+                if (imageDeleteSuccess) {
+                  wx.showToast({
+                    title: '删除成功',
+                    icon: 'success'
+                  });
+                } else {
+                  wx.showToast({
+                    title: '数据已删除，但图片删除失败',
+                    icon: 'none',
+                    duration: 3000
+                  });
+                }
+              },
+              fail: function(error) {
+                console.error('从数据库删除失败:', error);
+                wx.hideLoading();
+                wx.showToast({
+                  title: '删除失败，请重试',
+                  icon: 'none',
+                  duration: 2000
+                });
+              }
             });
-          }
-          
-          wx.showToast({
-            title: '删除成功',
-            icon: 'success'
           });
         }
+      }
+    });
+  },
+
+  /**
+   * 删除云存储中的图片文件
+   */
+  deleteCloudStorageImage: function(imageUrl, callback) {
+    if (!imageUrl) {
+      console.log('没有图片URL，跳过云存储删除');
+      callback(true);
+      return;
+    }
+
+    console.log('=== 开始删除云存储图片 ===');
+    console.log('原始图片URL:', imageUrl);
+
+    // 从fileID中提取文件路径
+    let filePath = '';
+    if (imageUrl.includes('tcb.qcloud.la')) {
+      // 从完整URL中提取路径
+      // https://xxx.tcb.qcloud.la/ai_recognition/1758546765072.jpg
+      const urlParts = imageUrl.split('/');
+      filePath = urlParts.slice(3).join('/'); // 去掉域名部分
+    } else if (imageUrl.startsWith('cloud://')) {
+      // 处理cloud://格式的fileID
+      // cloud://cloud1-5g2ffclu18317b9c.636c-cloud1-5g2ffclu18317b9c-1378258181/ai_recognition/1758546765072.jpg
+      // 需要提取 ai_recognition/1758546765072.jpg 部分
+      const parts = imageUrl.split('/');
+      if (parts.length > 3) {
+        filePath = parts.slice(3).join('/'); // 去掉 cloud:// 和 env.bucket 部分
+      } else {
+        filePath = imageUrl; // 如果格式不对，直接使用原URL
+      }
+    } else {
+      // 直接使用作为路径
+      filePath = imageUrl;
+    }
+
+    console.log('提取的文件路径:', filePath);
+    console.log('准备删除云存储文件:', filePath);
+
+    // 尝试使用fileID直接删除
+    wx.cloud.deleteFile({
+      fileList: [imageUrl], // 直接使用原始fileID
+      success: function(res) {
+        console.log('云存储文件删除成功 (使用fileID):', res);
+        callback(true);
+      },
+      fail: function(error) {
+        console.error('使用fileID删除失败:', error);
+        console.log('尝试使用文件路径删除...');
+        
+        // 如果fileID删除失败，尝试使用文件路径
+        wx.cloud.deleteFile({
+          fileList: [filePath],
+          success: function(res) {
+            console.log('云存储文件删除成功 (使用路径):', res);
+            callback(true);
+          },
+          fail: function(error2) {
+            console.error('使用文件路径删除也失败:', error2);
+            console.error('删除失败的文件路径:', filePath);
+            console.error('删除失败的fileID:', imageUrl);
+            // 即使云存储删除失败，也继续删除数据库记录
+            callback(false);
+          }
+        });
       }
     });
   },
@@ -444,18 +601,256 @@ Page({
   showItemMenu: function(e) {
     // 长按显示更多操作
     const item = e.currentTarget.dataset.item;
+    const that = this;
+    
     wx.showActionSheet({
       itemList: ['编辑', '删除', '查看详情'],
       success: function(res) {
         if (res.tapIndex === 0) {
           // 编辑
+          that.editItem({ currentTarget: { dataset: { item: item } } });
         } else if (res.tapIndex === 1) {
           // 删除
+          that.deleteItem({ currentTarget: { dataset: { item: item } } });
         } else if (res.tapIndex === 2) {
           // 查看详情
+          that.viewItemDetails(item);
         }
       }
     });
+  },
+
+  /**
+   * 查看物品详情
+   */
+  viewItemDetails: function(item) {
+    console.log('=== 查看物品详情 ===');
+    console.log('物品数据:', item);
+    
+    // 分类ID到分类名称的映射
+    const categoryNames = {
+      1: '上衣',
+      2: '外套', 
+      3: '裙装',
+      4: '裤装',
+      5: '鞋子',
+      6: '配饰',
+      7: '内衣'
+    };
+    
+    // 获取分类名称
+    const categoryName = categoryNames[item.categoryId] || item.classify || '未分类';
+    
+    console.log('分类ID:', item.categoryId);
+    console.log('分类名称:', categoryName);
+    
+    wx.showModal({
+      title: item.name || '物品详情',
+      content: `分类：${categoryName}\n风格：${item.style || '未知'}\n颜色：${item.color || '未知'}\n搭配建议：${item.stylingAdvice || '暂无建议'}`,
+      showCancel: false,
+      confirmText: '知道了'
+    });
+  },
+
+  /**
+   * 保存AI识别结果到数据库
+   */
+  saveAIRecognitionToDatabase: function(imagePath, aiResult) {
+    const that = this;
+    const app = getApp();
+    const openid = app.globalData.openid;
+    
+    if (!openid) {
+      console.error('用户openid不存在，无法保存数据');
+      wx.showToast({
+        title: '用户信息异常，请重新登录',
+        icon: 'none',
+        duration: 2000
+      });
+      return;
+    }
+    
+    // 先上传图片到云存储
+    that.uploadImageForAIRecognition(imagePath, aiResult);
+  },
+
+  /**
+   * 上传AI识别图片到云存储
+   */
+  uploadImageForAIRecognition: function(imagePath, aiResult) {
+    const that = this;
+    
+    wx.showLoading({
+      title: '上传图片中...',
+    });
+    
+    // 生成云存储路径
+    const timestamp = Date.now();
+    const fileExtension = imagePath.match(/\.[^.]+?$/)[0] || '.jpg';
+    const cloudPath = `ai_recognition/${timestamp}${fileExtension}`;
+    
+    console.log('开始上传AI识别图片:', {
+      localPath: imagePath,
+      cloudPath: cloudPath
+    });
+    
+    wx.cloud.uploadFile({
+      cloudPath: cloudPath,
+      filePath: imagePath,
+      success: res => {
+        console.log('AI识别图片上传成功:', res);
+        
+        // 生成云存储URL - 使用正确的格式
+        const imageUrl = res.fileID; // 使用云存储返回的fileID
+        
+        // 上传成功后保存到数据库
+        that.saveToDatabaseWithCloudImage(imageUrl, aiResult);
+        
+      },
+      fail: error => {
+        console.error('AI识别图片上传失败:', error);
+        wx.hideLoading();
+        wx.showToast({
+          title: '图片上传失败',
+          icon: 'none',
+          duration: 2000
+        });
+      }
+    });
+  },
+
+  /**
+   * 使用云存储图片URL保存到数据库
+   */
+  saveToDatabaseWithCloudImage: function(imageUrl, aiResult) {
+    const that = this;
+    const app = getApp();
+    const openid = app.globalData.openid;
+    
+    // 根据AI识别结果确定分类ID - 修复字段映射
+    let categoryId = 1; // 默认分类
+    if (aiResult.category || aiResult.categoryId) {
+      categoryId = aiResult.category || aiResult.categoryId;
+    }
+    
+    // 根据分类ID确定分类名称
+    const categoryNames = {
+      1: '上衣',
+      2: '外套', 
+      3: '裙装',
+      4: '裤装',
+      5: '鞋子',
+      6: '配饰',
+      7: '内衣'
+    };
+    
+    const db = wx.cloud.database();
+    db.collection("clothes").add({
+      data: {
+        // 注意：_openid字段将由系统自动添加，不需要手动设置
+        
+        // 基本信息 - 根据AI识别结果生成有意义的名称
+        name: that.generateItemName(aiResult, categoryNames[categoryId]),
+        classify: categoryNames[categoryId] || '未分类',
+        details: aiResult.details || 'AI识别',
+        style: aiResult.style || '未知',
+        color: aiResult.color || '未知',
+        stylingAdvice: aiResult.stylingAdvice || '建议搭配基础款单品',
+        
+        // 图片信息 - 使用云存储URL
+        url: imageUrl,  // ✅ 现在使用云存储URL
+        imagefrom: 'ai_recognition',
+        
+        // 分类信息
+        categoryId: categoryId,
+        
+        // AI识别信息
+        confidence: aiResult.confidence || 0,
+        aiGenerated: true,
+        
+        // 时间信息
+        addTime: new Date().toISOString().split('T')[0],
+        createTime: new Date(),
+        
+        // 标签信息
+        tags: aiResult.tags || `${aiResult.style || '未知'} ${aiResult.color || '未知'}`,
+        
+        // 其他信息
+        status: 'active',
+        isDeleted: false
+      },
+      success: function(res) {
+        console.log('保存AI识别结果到数据库成功:', res);
+        wx.hideLoading();
+        
+        // 重新加载数据
+        that.loadUserClothes();
+        
+        // 切换到新添加物品的分类
+        const categoryId = aiResult.categoryId || 1;
+        const category = that.data.categories.find(cat => cat.id === categoryId);
+        if (category) {
+          that.setData({
+            currentCategoryId: categoryId,
+            currentCategoryName: category.name
+          });
+        }
+        
+        wx.showToast({
+          title: 'AI识别完成，添加成功！',
+          icon: 'success'
+        });
+      },
+      fail: function(error) {
+        console.error('保存AI识别结果到数据库失败:', error);
+        wx.hideLoading();
+        wx.showToast({
+          title: '保存失败，请重试',
+          icon: 'none',
+          duration: 2000
+        });
+      }
+    });
+  },
+
+  /**
+   * 根据AI识别结果生成有意义的物品名称
+   */
+  generateItemName: function(aiResult, categoryName) {
+    // 如果AI返回了明确的名称，直接使用 - 修复字段映射
+    const itemName = aiResult.name || aiResult.itemName;
+    if (itemName && itemName !== '未命名衣物') {
+      return itemName;
+    }
+    
+    // 根据AI识别结果组合生成名称
+    const parts = [];
+    
+    // 添加分类名称
+    if (categoryName && categoryName !== '未分类') {
+      parts.push(categoryName);
+    }
+    
+    // 添加颜色信息
+    if (aiResult.color && aiResult.color !== '未知' && aiResult.color !== '智能识别') {
+      parts.push(aiResult.color);
+    }
+    
+    // 添加风格信息
+    if (aiResult.style && aiResult.style !== '未知' && aiResult.style !== '智能识别') {
+      parts.push(aiResult.style);
+    }
+    
+    // 如果parts为空，使用默认名称
+    if (parts.length === 0) {
+      return 'AI识别衣物';
+    }
+    
+    // 组合名称，最多3个部分
+    const name = parts.slice(0, 3).join(' ');
+    
+    // 如果名称太长，截取前10个字符
+    return name.length > 10 ? name.substring(0, 10) + '...' : name;
   },
 
   /**

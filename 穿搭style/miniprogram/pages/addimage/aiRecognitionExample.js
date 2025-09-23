@@ -12,7 +12,16 @@ Page({
     isRecognizing: false,
     recognitionResult: null,
     compressionStats: null,
-    executionTime: 0
+    executionTime: 0,
+    // 进度条数据
+    progressData: {
+      stage: '',
+      stageProgress: 0,
+      totalProgress: 0,
+      message: '',
+      stageInfo: null,
+      estimatedTime: 0
+    }
   },
 
   onLoad() {
@@ -39,7 +48,7 @@ Page({
       
       // 3. 执行AI识别（内部会自动处理压缩）
       const startTime = Date.now();
-      const result = await this.performAIRecognition(imagePath);
+      const result = await this.performAIRecognition(imagePath, this.onProgressUpdate.bind(this));
       const executionTime = Date.now() - startTime;
       
       this.setData({
@@ -100,30 +109,38 @@ Page({
   /**
    * 执行AI识别
    */
-  async performAIRecognition(imagePath) {
+  async performAIRecognition(imagePath, onProgress = null) {
     try {
       // 创建AI识别实例
       const aiRecognition = new AIRecognition();
       
-      // 设置压缩配置（可选）
-      aiRecognition.setCompressionConfig({
+      // 更新压缩配置（可选）
+      aiRecognition.updateCompressionConfig({
         enabled: true,
-        maxSize: 200 * 1024, // 200KB
-        quality: 0.8
+        maxSize: 60 * 1024, // 60KB，进一步减小
+        quality: 0.7
       });
       
-      // 执行识别
-      const result = await aiRecognition.recognizeClothing(imagePath);
+      // 执行识别（带进度回调）
+      const result = await aiRecognition.recognizeClothing(imagePath, {}, onProgress);
       
-      // 格式化结果
-      const formattedResult = aiRecognition.formatResult(result);
-      
-      return formattedResult;
+      // 返回结果
+      return result;
       
     } catch (error) {
       console.error('AI识别执行失败:', error);
       throw error;
     }
+  },
+
+  /**
+   * 进度更新回调
+   */
+  onProgressUpdate(progressData) {
+    console.log('进度更新:', progressData);
+    this.setData({
+      progressData: progressData
+    });
   },
 
   /**
@@ -180,7 +197,18 @@ Page({
       console.log('开始批量识别测试...');
       
       const aiRecognition = new AIRecognition();
-      const results = await aiRecognition.batchRecognize(imagePaths);
+      const results = [];
+      
+      // 逐个识别图片
+      for (let i = 0; i < imagePaths.length; i++) {
+        try {
+          const result = await aiRecognition.recognizeClothing(imagePaths[i]);
+          results.push(result);
+        } catch (error) {
+          console.error(`第${i+1}张图片识别失败:`, error);
+          results.push({ error: error.message });
+        }
+      }
       
       console.log('批量识别结果:', results);
       
@@ -241,5 +269,99 @@ ${compressionStats.recommended ? `建议质量: ${compressionStats.options.quali
       content: details,
       showCancel: false
     });
+  },
+
+  /**
+   * 显示进度条详情
+   */
+  showProgressDetails() {
+    const { progressData } = this.data;
+    if (!progressData.stage) return;
+    
+    const details = `
+当前阶段: ${progressData.stageInfo?.name || progressData.stage}
+阶段进度: ${progressData.stageProgress}%
+总进度: ${progressData.totalProgress}%
+状态: ${progressData.message}
+预计剩余: ${progressData.estimatedTime}秒
+    `.trim();
+    
+    wx.showModal({
+      title: '进度详情',
+      content: details,
+      showCancel: false
+    });
+  },
+
+  /**
+   * 重置进度条
+   */
+  resetProgress() {
+    this.setData({
+      progressData: {
+        stage: '',
+        stageProgress: 0,
+        totalProgress: 0,
+        message: '',
+        stageInfo: null,
+        estimatedTime: 0
+      }
+    });
+  },
+
+  /**
+   * 测试进度条功能
+   */
+  async testProgressBar() {
+    try {
+      this.setData({ isRecognizing: true });
+      this.resetProgress();
+      
+      // 模拟进度更新
+      const stages = ['compression', 'upload', 'recognition'];
+      const messages = {
+        compression: ['开始处理图片...', '正在压缩图片...', '图片压缩完成'],
+        upload: ['准备上传图片...', '正在上传图片...', '图片上传完成'],
+        recognition: ['AI正在分析图片...', 'AI识别中...', 'AI识别完成']
+      };
+      
+      for (let i = 0; i < stages.length; i++) {
+        const stage = stages[i];
+        const stageMessages = messages[stage];
+        
+        for (let j = 0; j < stageMessages.length; j++) {
+          const progress = Math.round((j + 1) / stageMessages.length * 100);
+          this.onProgressUpdate({
+            stage: stage,
+            stageProgress: progress,
+            totalProgress: Math.round(((i * 100) + progress) / 3),
+            message: stageMessages[j],
+            stageInfo: {
+              name: stage === 'compression' ? '图片处理' : stage === 'upload' ? '数据上传' : 'AI识别',
+              duration: stage === 'compression' ? 2000 : stage === 'upload' ? 1000 : 12000,
+              description: '测试阶段'
+            },
+            estimatedTime: Math.round((3 - i - (j + 1) / stageMessages.length) * 5)
+          });
+          
+          // 等待一段时间模拟处理
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      wx.showToast({
+        title: '进度条测试完成',
+        icon: 'success'
+      });
+      
+    } catch (error) {
+      console.error('进度条测试失败:', error);
+      wx.showToast({
+        title: '测试失败',
+        icon: 'error'
+      });
+    } finally {
+      this.setData({ isRecognizing: false });
+    }
   }
 });
