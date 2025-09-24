@@ -50,12 +50,12 @@
 		</view>
 		<view class="tags-container">
 			<!-- 预设标签 -->
-			<view wx:for="{{styleTags}}" wx:key="*this" 
+			<view wx:for="{{presetTags}}" wx:key="*this" 
 				  class="tag-item {{selectedTags.indexOf(item) > -1 ? 'selected' : ''}}"
 				  bindtap="toggleTag" 
 				  data-tag="{{item}}">
 				{{item}}
-				<view class="tag-delete-btn" catchtap="removeTag" data-tag="{{item}}">×</view>
+				<view class="tag-delete-btn" catchtap="removeTag" data-tag="{{item}}" wx:if="{{selectedTags.indexOf(item) > -1}}">×</view>
 			</view>
 			
 			<!-- 自定义标签 -->
@@ -95,6 +95,33 @@
 			<view class="modal-footer">
 				<button class="cancel-btn" bindtap="hideAddTagModal">取消</button>
 				<button class="confirm-btn" bindtap="addCustomTag">确定</button>
+			</view>
+		</view>
+	</view>
+
+	<!-- AI识别结果弹窗 -->
+	<view class="modal-overlay" wx:if="{{showAiResultModal}}" bindtap="ignoreAiRecognizedTags">
+		<view class="modal-content ai-result-modal" catchtap="stopPropagation">
+			<view class="modal-header">
+				<view class="modal-title">AI风格识别结果</view>
+				<view class="close-btn" bindtap="ignoreAiRecognizedTags">×</view>
+			</view>
+			<view class="modal-body">
+				<view class="ai-result-info">
+					<view class="ai-result-description">{{aiRecognitionResult.description}}</view>
+				</view>
+				<view class="ai-tags-section">
+					<view class="section-label">识别到的风格标签:</view>
+					<view class="ai-tags-container">
+						<view wx:for="{{aiRecognizedTags}}" wx:key="*this" class="ai-tag-item">
+							{{item}}
+						</view>
+					</view>
+				</view>
+			</view>
+			<view class="modal-footer">
+				<button class="cancel-btn" bindtap="ignoreAiRecognizedTags">忽略</button>
+				<button class="confirm-btn" bindtap="applyAiRecognizedTags">应用标签</button>
 			</view>
 		</view>
 	</view>
