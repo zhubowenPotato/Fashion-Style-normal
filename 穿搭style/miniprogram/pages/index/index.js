@@ -1,5 +1,7 @@
 // pages/index/index.js
 const util = require('../../utils/util.js')
+// 引入AI推荐工具
+const AIRecommendation = require('../../utils/aiRecommendation.js')
 var app = getApp()
 
 Page({
@@ -19,6 +21,8 @@ Page({
     recommendationDesc: '',
     recommendationStyle: '',
     recommendationTags: [],
+    recommendationDetails: null, // 完整的推荐详情
+    imageDisplayHeight: '600rpx', // 动态图片显示高度
     
     // 示例推荐数据
     sampleRecommendations: [
@@ -782,27 +786,130 @@ Page({
       isGenerating: true
     });
 
-    // 模拟AI生成过程
-    setTimeout(() => {
-      const recommendations = that.data.sampleRecommendations;
-      const randomIndex = Math.floor(Math.random() * recommendations.length);
-      const recommendation = recommendations[randomIndex];
+    // 显示生成进度
+    wx.showLoading({
+      title: 'AI正在分析...',
+      mask: true
+    });
+
+    console.log('开始生成AI推荐...');
+
+    // 创建AI推荐实例
+    const aiRecommendation = new AIRecommendation();
+    
+    // 生成推荐
+    aiRecommendation.generateRecommendation(function(progress) {
+      console.log('推荐生成进度:', progress);
       
-      that.setData({
-        hasRecommendation: true,
-        isGenerating: false,
-        recommendationImage: recommendation.image,
-        recommendationTitle: recommendation.title,
-        recommendationDesc: recommendation.desc,
-        recommendationStyle: recommendation.style,
-        recommendationTags: recommendation.tags
-      });
+      // 更新加载提示
+      if (progress.message) {
+        wx.showLoading({
+          title: progress.message,
+          mask: true
+        });
+      }
+    }).then(function(result) {
+      console.log('AI推荐生成成功:', result);
       
-      wx.showToast({
-        title: '推荐生成成功！',
-        icon: 'success'
-      });
-    }, 2000);
+      if (result.success) {
+        const recommendation = result.data;
+        
+        that.setData({
+          hasRecommendation: true,
+          isGenerating: false,
+          recommendationImage: recommendation.image,
+          recommendationTitle: recommendation.outfitTitle,
+          recommendationDesc: recommendation.outfitDescription,
+          recommendationStyle: recommendation.outfitStyle,
+          recommendationTags: recommendation.outfitTags || [],
+          recommendationDetails: recommendation
+        });
+        
+        // 动态调整图片显示高度
+        that.adjustImageDisplayHeight(recommendation.image);
+        
+        wx.hideLoading();
+        wx.showToast({
+          title: '推荐生成成功！',
+          icon: 'success',
+          duration: 2000
+        });
+      } else {
+        throw new Error(result.error || '推荐生成失败');
+      }
+    }).catch(function(error) {
+      console.error('AI推荐生成失败:', error);
+      
+      // 降级到示例推荐
+      that.generateFallbackRecommendation();
+    });
+  },
+
+  // 动态调整图片显示高度
+  adjustImageDisplayHeight: function(imageUrl) {
+    const that = this;
+    
+    // 获取图片信息
+    wx.getImageInfo({
+      src: imageUrl,
+      success: function(res) {
+        console.log('图片信息:', res);
+        const { width, height } = res;
+        
+        // 计算屏幕宽度（rpx）
+        const systemInfo = wx.getSystemInfoSync();
+        const screenWidth = systemInfo.windowWidth;
+        const screenWidthRpx = screenWidth * 2; // 转换为rpx
+        
+        // 计算图片在屏幕上的显示高度
+        const imageDisplayHeight = (height / width) * screenWidthRpx;
+        
+        // 设置合理的显示高度范围
+        let finalHeight = Math.max(400, Math.min(800, imageDisplayHeight));
+        
+        console.log(`图片尺寸: ${width}x${height}, 计算显示高度: ${finalHeight}rpx`);
+        
+        // 动态设置图片容器高度
+        that.setData({
+          imageDisplayHeight: finalHeight + 'rpx'
+        });
+      },
+      fail: function(error) {
+        console.warn('获取图片信息失败:', error);
+        // 使用默认高度
+        that.setData({
+          imageDisplayHeight: '600rpx'
+        });
+      }
+    });
+  },
+
+  // 降级推荐（当AI推荐失败时使用）
+  generateFallbackRecommendation: function() {
+    const that = this;
+    
+    const recommendations = that.data.sampleRecommendations;
+    const randomIndex = Math.floor(Math.random() * recommendations.length);
+    const recommendation = recommendations[randomIndex];
+    
+    that.setData({
+      hasRecommendation: true,
+      isGenerating: false,
+      recommendationImage: recommendation.image,
+      recommendationTitle: recommendation.title,
+      recommendationDesc: recommendation.desc,
+      recommendationStyle: recommendation.style,
+      recommendationTags: recommendation.tags
+    });
+    
+    // 动态调整图片显示高度
+    that.adjustImageDisplayHeight(recommendation.image);
+    
+    wx.hideLoading();
+    wx.showToast({
+      title: '推荐生成成功！',
+      icon: 'success'
+    });
   },
 
   // 刷新推荐
@@ -831,6 +938,66 @@ Page({
     wx.showToast({
       title: '功能开发中',
       icon: 'none'
+    });
+  },
+
+  // 预览图片
+  previewImage: function() {
+    if (!this.data.hasRecommendation || !this.data.recommendationImage) {
+      wx.showToast({
+        title: '暂无图片可预览',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    wx.previewImage({
+      current: this.data.recommendationImage,
+      urls: [this.data.recommendationImage]
+    });
+  },
+
+  // 查看推荐详情
+  viewRecommendationDetails: function() {
+    const that = this;
+    const details = that.data.recommendationDetails;
+    
+    if (!details) {
+      wx.showToast({
+        title: '暂无推荐详情',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    // 构建详情内容
+    let content = `穿搭风格：${details.outfitStyle || details.style}\n\n`;
+    content += `搭配建议：${details.stylingTips}\n\n`;
+    
+    if (details.clothingItems && details.clothingItems.length > 0) {
+      content += `推荐单品：\n${details.clothingItems.join('、')}\n\n`;
+    }
+    
+    // 添加图片生成信息
+    if (details.generatedImage && details.generatedImage.success) {
+      content += `✨ 本推荐包含AI生成的穿搭图片\n\n`;
+    }
+    
+    if (details.basedOn) {
+      content += `推荐依据：\n`;
+      if (details.basedOn.userStyle && details.basedOn.userStyle.length > 0) {
+        content += `• 你的风格：${details.basedOn.userStyle.join('、')}\n`;
+      }
+      if (details.basedOn.weather) {
+        content += `• 今日天气：${details.basedOn.weather.temperature}°C，${details.basedOn.weather.weather}\n`;
+      }
+    }
+    
+    wx.showModal({
+      title: details.title || '推荐详情',
+      content: content,
+      showCancel: false,
+      confirmText: '知道了'
     });
   },
 

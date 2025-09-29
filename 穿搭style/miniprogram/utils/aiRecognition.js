@@ -88,7 +88,7 @@ class AIRecognition {
           content: [
             {
               type: "text",
-              text: "请分析这张图片中的衣服，返回JSON格式的结果，包含以下字段：name(衣服名称), category(类别：1-上衣,2-外套,3-裙装,4-裤装,5-鞋子,6-配饰,7-内衣), style(风格), color(颜色), stylingAdvice(搭配建议), tags(标签数组)。请确保返回的是有效的JSON格式。"
+              text: "请分析这张图片中的衣服，返回JSON格式的结果，包含以下字段：name(衣服名称), category(类别：1-上衣,2-外套,3-裙装,4-裤装,5-鞋子,6-配饰), style(风格), color(颜色), stylingAdvice(搭配建议), tags(标签数组)。请确保返回的是有效的JSON格式。"
             },
             {
               type: "image_url",
@@ -307,7 +307,7 @@ class AIRecognition {
           content: [
             {
               type: "text",
-              text: "请分析这张形象照中人物的穿搭风格，返回JSON格式的结果，包含以下字段：styleTags(风格标签数组，从以下选项中选择：甜美、冷色调、暖色调、简约、复古、运动、优雅、休闲、正式、可爱等，可以扩展其他风格), confidence(置信度0-1), description(风格描述)。请确保返回的是有效的JSON格式，styleTags数组最多包含5个标签。"
+              text: "请分析这张形象照中人物的详细信息和穿搭风格，返回JSON格式的结果，包含以下字段：\n- styleTags(风格标签数组，从以下选项中选择：甜美、冷色调、暖色调、简约、复古、运动、优雅、休闲、正式、可爱等，可以扩展其他风格)\n- confidence(置信度0-1)\n- description(风格描述)\n- userInfo(用户详细信息对象，包含以下字段)：\n  - age(年龄范围，如：20-25岁)\n  - gender(性别：男/女/未知)\n  - height(身高范围，如：160-165cm)\n  - weight(体重范围，如：50-55kg)\n  - bodyType(体型：瘦/标准/偏胖/偏瘦等)\n  - skinTone(肤色：白皙/自然/偏黄/偏黑等)\n  - faceShape(脸型：圆脸/方脸/长脸/瓜子脸等)\n  - hairStyle(发型：短发/长发/卷发/直发等)\n  - overallStyle(整体风格描述)\n请确保返回的是有效的JSON格式，styleTags数组最多包含5个标签，userInfo对象包含所有字段。"
             },
             {
               type: "image_url",
@@ -397,7 +397,7 @@ class AIRecognition {
   }
 
   /**
-   * 验证形象照风格识别结果（不进行标签标准化）
+   * 验证形象照风格识别结果（包含详细用户信息）
    * @param {Object} result - 原始识别结果
    * @returns {Object} 验证后的结果
    */
@@ -405,7 +405,18 @@ class AIRecognition {
     const defaultResult = {
       styleTags: [],
       confidence: 0.5,
-      description: '风格识别失败'
+      description: '风格识别失败',
+      userInfo: {
+        age: '未知',
+        gender: '未知',
+        height: '未知',
+        weight: '未知',
+        bodyType: '未知',
+        skinTone: '未知',
+        faceShape: '未知',
+        hairStyle: '未知',
+        overallStyle: '未知'
+      }
     };
 
     if (!result || typeof result !== 'object') {
@@ -420,10 +431,25 @@ class AIRecognition {
       ).slice(0, 8); // 最多8个标签
     }
 
+    // 验证用户信息
+    const userInfo = result.userInfo || {};
+    const validatedUserInfo = {
+      age: userInfo.age || defaultResult.userInfo.age,
+      gender: userInfo.gender || defaultResult.userInfo.gender,
+      height: userInfo.height || defaultResult.userInfo.height,
+      weight: userInfo.weight || defaultResult.userInfo.weight,
+      bodyType: userInfo.bodyType || defaultResult.userInfo.bodyType,
+      skinTone: userInfo.skinTone || defaultResult.userInfo.skinTone,
+      faceShape: userInfo.faceShape || defaultResult.userInfo.faceShape,
+      hairStyle: userInfo.hairStyle || defaultResult.userInfo.hairStyle,
+      overallStyle: userInfo.overallStyle || defaultResult.userInfo.overallStyle
+    };
+
     return {
       styleTags: styleTags,
       confidence: typeof result.confidence === 'number' ? Math.max(0, Math.min(1, result.confidence)) : defaultResult.confidence,
-      description: result.description || defaultResult.description
+      description: result.description || defaultResult.description,
+      userInfo: validatedUserInfo
     };
   }
 
@@ -592,7 +618,7 @@ class AIRecognition {
    * @returns {number} 有效的类别值
    */
   validateCategory(category) {
-    const validCategories = [1, 2, 3, 4, 5, 6, 7];
+    const validCategories = [1, 2, 3, 4, 5, 6];
     const numCategory = parseInt(category);
     return validCategories.includes(numCategory) ? numCategory : null;
   }
@@ -611,29 +637,8 @@ class AIRecognition {
     const description = (result.stylingAdvice || '').toLowerCase();
     const tags = Array.isArray(result.tags) ? result.tags.join(' ').toLowerCase() : '';
 
-    // 睡衣、家居服等归类为内衣
-    if (name.includes('睡衣') || name.includes('家居服') || name.includes('睡袍') || 
-        name.includes('pajama') || name.includes('nightwear') ||
-        description.includes('睡衣') || description.includes('家居') ||
-        tags.includes('睡衣') || tags.includes('家居')) {
-      result.category = 7; // 内衣
-      console.log('智能分类映射：将物品归类为内衣', result.name);
-    }
-    // 袜子归类为内衣
-    else if (name.includes('袜子') || name.includes('sock') || 
-             description.includes('袜子') || tags.includes('袜子')) {
-      result.category = 7; // 内衣
-      console.log('智能分类映射：将物品归类为内衣', result.name);
-    }
-    // 内衣相关
-    else if (name.includes('内衣') || name.includes('文胸') || name.includes('内裤') ||
-             name.includes('underwear') || name.includes('bra') || name.includes('panties') ||
-             description.includes('内衣') || tags.includes('内衣')) {
-      result.category = 7; // 内衣
-      console.log('智能分类映射：将物品归类为内衣', result.name);
-    }
     // 鞋子相关
-    else if (name.includes('鞋') || name.includes('靴') || name.includes('sneaker') ||
+    if (name.includes('鞋') || name.includes('靴') || name.includes('sneaker') ||
              name.includes('shoe') || name.includes('boot') ||
              description.includes('鞋') || tags.includes('鞋')) {
       result.category = 5; // 鞋子

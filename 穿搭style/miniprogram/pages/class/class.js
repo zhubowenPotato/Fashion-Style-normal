@@ -41,12 +41,6 @@ Page({
         name: '配饰',
         icon: 'https://img.icons8.com/fluency/96/ff6b9d/necklace.png',
         count: 0
-      },
-      {
-        id: 7,
-        name: '内衣',
-        icon: 'https://img.icons8.com/fluency/96/ff6b9d/bra.png',
-        count: 0
       }
     ],
     
@@ -155,8 +149,7 @@ Page({
           3: '裙装',
           4: '裤装',
           5: '鞋子',
-          6: '配饰',
-          7: '内衣'
+          6: '配饰'
         };
         
         const allItems = res.data.map(item => {
@@ -634,8 +627,7 @@ Page({
       3: '裙装',
       4: '裤装',
       5: '鞋子',
-      6: '配饰',
-      7: '内衣'
+      6: '配饰'
     };
     
     // 获取分类名称
@@ -740,8 +732,7 @@ Page({
       3: '裙装',
       4: '裤装',
       5: '鞋子',
-      6: '配饰',
-      7: '内衣'
+      6: '配饰'
     };
     
     const db = wx.cloud.database();

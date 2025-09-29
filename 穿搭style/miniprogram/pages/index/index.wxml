@@ -31,17 +31,10 @@
     </view>
     
     <view wx:else class="recommendation-card">
-      <view class="recommendation-image">
-        <image src="{{recommendationImage}}" mode="aspectFill" class="outfit-image"></image>
-        <view class="recommendation-overlay">
-          <text class="recommendation-style">{{recommendationStyle}}</text>
-        </view>
-      </view>
-      <view class="recommendation-info">
-        <text class="recommendation-title">{{recommendationTitle}}</text>
-        <text class="recommendation-desc">{{recommendationDesc}}</text>
-        <view class="recommendation-tags">
-          <text wx:for="{{recommendationTags}}" wx:key="index" class="tag">{{item}}</text>
+      <view class="recommendation-image" style="height: {{imageDisplayHeight}}">
+        <image src="{{recommendationImage}}" mode="aspectFit" class="outfit-image" bindtap="previewImage"></image>
+        <view class="detail-button" catchtap="viewRecommendationDetails">
+          <text class="detail-button-text">!</text>
         </view>
       </view>
     </view>

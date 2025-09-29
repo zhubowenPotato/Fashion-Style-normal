@@ -105,6 +105,20 @@ Page({
             wx.setStorageSync('userInfo', cleanUserInfo);
           }
           
+          // 更新用户分析信息
+          if (userData.userAnalysis) {
+            that.setData({
+              userAnalysis: userData.userAnalysis
+            });
+            
+            // 更新全局数据
+            const app = getApp();
+            app.globalData.userAnalysis = userData.userAnalysis;
+            
+            // 更新本地存储
+            wx.setStorageSync('userAnalysis', userData.userAnalysis);
+          }
+          
           // 标签信息由 loadUserTags 函数单独处理
         }
       },
@@ -698,7 +712,12 @@ Page({
       wx.hideLoading();
       
       if (result.success && result.data.styleTags && result.data.styleTags.length > 0) {
-        // 识别成功，显示结果弹窗
+        // 识别成功，保存详细的用户分析信息到数据库
+        if (result.data.userInfo) {
+          that.saveUserAnalysisToDatabase(result.data.userInfo);
+        }
+        
+        // 显示结果弹窗
         that.setData({
           aiRecognitionResult: result.data,
           aiRecognizedTags: result.data.styleTags,
@@ -726,6 +745,45 @@ Page({
         icon: 'none',
         duration: 2000
       });
+    });
+  },
+
+  // 保存用户分析信息到数据库
+  saveUserAnalysisToDatabase: function(userInfo) {
+    const that = this;
+    
+    console.log('保存用户分析信息到数据库:', userInfo);
+    
+    wx.cloud.callFunction({
+      name: 'userProfile',
+      data: {
+        action: 'saveUserAnalysis',
+        userAnalysis: userInfo
+      },
+      success: function(res) {
+        console.log('用户分析信息保存成功:', res);
+        // 更新本地数据
+        that.setData({
+          userAnalysis: userInfo
+        });
+        
+        // 同步到全局数据
+        const app = getApp();
+        if (app.globalData) {
+          app.globalData.userAnalysis = userInfo;
+        }
+        
+        // 同步到本地存储
+        wx.setStorageSync('userAnalysis', userInfo);
+      },
+      fail: function(err) {
+        console.error('保存用户分析信息失败:', err);
+        wx.showToast({
+          title: '保存用户信息失败',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
   },
 
