@@ -103,6 +103,15 @@ Page({
   },
 
   /**
+   * 生命周期函数--监听页面显示
+   */
+  onShow: function() {
+    console.log('class页面onShow - 刷新数据');
+    // 每次页面显示时重新加载数据，确保显示最新的衣物
+    this.loadUserClothes();
+  },
+
+  /**
    * 初始化数据
    */
   initData: function() {
@@ -116,6 +125,9 @@ Page({
     const that = this;
     const app = getApp();
     const openid = app.globalData.openid;
+    
+    console.log('=== 开始加载用户衣物数据 ===');
+    console.log('用户openid:', openid);
     
     if (!openid) {
       console.error('用户openid不存在，无法加载数据');
@@ -132,15 +144,19 @@ Page({
     });
     
     const db = wx.cloud.database();
+    
+    // 查询当前用户的所有衣物（简化查询条件以确保能查到数据）
     db.collection("clothes")
       .where({
-        _openid: openid,
-        isDeleted: false
+        _openid: openid
       })
       .orderBy('createTime', 'desc')
       .get()
       .then(res => {
-        console.log('从数据库加载衣物数据:', res);
+        console.log('✅ 从数据库加载衣物数据成功!');
+        console.log('查询结果:', res);
+        console.log('数据条数:', res.data.length);
+        console.log('原始数据:', res.data);
         
         // 分类ID到分类名称的映射
         const categoryNames = {
@@ -152,50 +168,85 @@ Page({
           6: '配饰'
         };
         
-        const allItems = res.data.map(item => {
-          const categoryId = item.categoryId || 1;
-          const categoryName = categoryNames[categoryId] || item.classify || '未分类';
-          
-          return {
-            id: item._id,
-            categoryId: categoryId,
-            classify: categoryName, // 确保classify字段存在
-            name: item.name || '未命名',
-            image: item.url || '',
-            tags: item.tags || `${item.style || '未知'} ${item.color || '未知'}`,
-            style: item.style || '未知',
-            color: item.color || '未知',
-            confidence: item.confidence || 0,
-            aiGenerated: item.aiGenerated || false,
-            addTime: item.addTime || new Date().toISOString().split('T')[0],
-            createTime: item.createTime || new Date(),
-            stylingAdvice: item.stylingAdvice || '建议搭配基础款单品'
-          };
-        });
+        // 过滤掉已删除的数据，并映射字段
+        const allItems = res.data
+          .filter(item => !item.isDeleted)  // 过滤已删除的数据
+          .map((item, index) => {
+            const categoryId = item.categoryId || 1;
+            const categoryName = categoryNames[categoryId] || item.classify || '未分类';
+            
+            console.log(`处理第${index + 1}条数据:`, {
+              原始_id: item._id,
+              原始categoryId: item.categoryId,
+              原始name: item.name,
+              原始url: item.url,
+              映射后categoryId: categoryId,
+              映射后分类名: categoryName
+            });
+            
+            return {
+              id: item._id,
+              categoryId: categoryId,
+              classify: categoryName, // 确保classify字段存在
+              name: item.name || '未命名',
+              image: item.url || '',
+              tags: item.tags || `${item.style || '未知'} ${item.color || '未知'}`,
+              style: item.style || '未知',
+              color: item.color || '未知',
+              confidence: item.confidence || 0,
+              aiGenerated: item.aiGenerated || false,
+              addTime: item.addTime || new Date().toISOString().split('T')[0],
+              createTime: item.createTime || new Date(),
+              stylingAdvice: item.stylingAdvice || '建议搭配基础款单品'
+            };
+          });
+        
+        console.log('处理后的所有数据:', allItems);
+        console.log('总共处理了', allItems.length, '条数据');
         
         that.setData({
           allItems: allItems
         });
         
+        console.log('开始更新分类数量...');
         that.updateCategoryCounts();
         
         // 默认显示第一个分类
         const categoryId = that.data.currentCategoryId || 1;
         const category = that.data.categories.find(cat => cat.id === categoryId);
+        console.log('当前选中的分类:', categoryId, category);
+        
         if (category) {
           const currentItems = allItems.filter(item => item.categoryId === categoryId);
+          console.log(`分类${categoryId}(${category.name})的物品:`, currentItems);
+          console.log(`分类${categoryId}的物品数量:`, currentItems.length);
+          
           that.setData({
             currentCategoryId: categoryId,
             currentCategoryName: category.name,
             currentItemCount: currentItems.length,
             currentItems: currentItems
           });
+          
+          console.log('界面数据更新完成:', {
+            currentCategoryId: that.data.currentCategoryId,
+            currentCategoryName: that.data.currentCategoryName,
+            currentItemCount: that.data.currentItemCount,
+            currentItems: that.data.currentItems.length
+          });
         }
         
         wx.hideLoading();
+        console.log('=== 数据加载完成 ===');
       })
       .catch(error => {
-        console.error('加载衣物数据失败:', error);
+        console.error('❌ 加载衣物数据失败:', error);
+        console.error('错误详情:', {
+          errCode: error.errCode,
+          errMsg: error.errMsg,
+          stack: error.stack
+        });
+        
         wx.hideLoading();
         wx.showToast({
           title: '加载数据失败',

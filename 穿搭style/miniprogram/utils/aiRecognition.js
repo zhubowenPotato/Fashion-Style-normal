@@ -237,15 +237,19 @@ class AIRecognition {
       if (onProgress) {
         onProgress({
           stage: 'recognition',
+          progress: 0,
           message: 'AI正在分析形象照风格...'
         });
       }
       
-      // 模拟识别进度
+      // 模拟识别进度 - 从10%逐渐增加到90%
+      let currentProgress = 10;
       const progressInterval = setInterval(() => {
-        if (onProgress) {
+        if (onProgress && currentProgress < 90) {
+          currentProgress += 10;
           onProgress({
             stage: 'recognition',
+            progress: currentProgress,
             message: 'AI正在分析形象照风格...'
           });
         }
@@ -258,6 +262,7 @@ class AIRecognition {
       if (onProgress) {
         onProgress({
           stage: 'recognition',
+          progress: 100,
           message: '风格识别完成'
         });
       }
@@ -514,15 +519,19 @@ class AIRecognition {
       if (onProgress) {
         onProgress({
           stage: 'recognition',
+          progress: 0,
           message: 'AI正在分析图片...'
         });
       }
       
-      // 模拟识别进度
+      // 模拟识别进度 - 从10%逐渐增加到90%
+      let currentProgress = 10;
       const progressInterval = setInterval(() => {
-        if (onProgress) {
+        if (onProgress && currentProgress < 90) {
+          currentProgress += 10;
           onProgress({
             stage: 'recognition',
+            progress: currentProgress,
             message: 'AI正在分析图片...'
           });
         }
@@ -535,6 +544,7 @@ class AIRecognition {
       if (onProgress) {
         onProgress({
           stage: 'recognition',
+          progress: 100,
           message: '识别完成'
         });
       }
@@ -598,17 +608,15 @@ class AIRecognition {
       return defaultResult;
     }
 
-    // 先进行智能分类映射
-    const mappedResult = this.smartCategoryMapping(result);
-
+    // 直接使用AI解析结果，不进行二次分类映射
     return {
-      name: mappedResult.name || defaultResult.name,
-      category: this.validateCategory(mappedResult.category) || defaultResult.category,
-      style: mappedResult.style || defaultResult.style,
-      color: mappedResult.color || defaultResult.color,
-      stylingAdvice: mappedResult.stylingAdvice || defaultResult.stylingAdvice,
-      tags: Array.isArray(mappedResult.tags) ? mappedResult.tags : defaultResult.tags,
-      confidence: typeof mappedResult.confidence === 'number' ? mappedResult.confidence : defaultResult.confidence
+      name: result.name || defaultResult.name,
+      category: this.validateCategory(result.category) || defaultResult.category,
+      style: result.style || defaultResult.style,
+      color: result.color || defaultResult.color,
+      stylingAdvice: result.stylingAdvice || defaultResult.stylingAdvice,
+      tags: Array.isArray(result.tags) ? result.tags : defaultResult.tags,
+      confidence: typeof result.confidence === 'number' ? result.confidence : defaultResult.confidence
     };
   }
 
@@ -621,38 +629,6 @@ class AIRecognition {
     const validCategories = [1, 2, 3, 4, 5, 6];
     const numCategory = parseInt(category);
     return validCategories.includes(numCategory) ? numCategory : null;
-  }
-
-  /**
-   * 智能分类映射 - 根据物品名称和描述进行二次分类
-   * @param {Object} result - AI识别结果
-   * @returns {Object} 修正后的结果
-   */
-  smartCategoryMapping(result) {
-    if (!result || !result.name) {
-      return result;
-    }
-
-    const name = result.name.toLowerCase();
-    const description = (result.stylingAdvice || '').toLowerCase();
-    const tags = Array.isArray(result.tags) ? result.tags.join(' ').toLowerCase() : '';
-
-    // 鞋子相关
-    if (name.includes('鞋') || name.includes('靴') || name.includes('sneaker') ||
-             name.includes('shoe') || name.includes('boot') ||
-             description.includes('鞋') || tags.includes('鞋')) {
-      result.category = 5; // 鞋子
-      console.log('智能分类映射：将物品归类为鞋子', result.name);
-    }
-    // 配饰相关
-    else if (name.includes('包') || name.includes('帽') || name.includes('围巾') || name.includes('项链') ||
-             name.includes('bag') || name.includes('hat') || name.includes('scarf') || name.includes('necklace') ||
-             description.includes('配饰') || tags.includes('配饰')) {
-      result.category = 6; // 配饰
-      console.log('智能分类映射：将物品归类为配饰', result.name);
-    }
-
-    return result;
   }
 
   /**

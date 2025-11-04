@@ -209,12 +209,16 @@ Page({
   autoFillForm: function(aiResult) {
     const that = this;
     
+    console.log('开始自动填充表单，AI结果:', aiResult);
+    
     // 根据分类设置对应的选择器索引
     let casIndex1 = 0, casIndex2 = 0, casIndex3 = 0, casIndex4 = 0, casIndex6 = 0, casIndex7 = 0, casIndex8 = 0;
     
-    // 设置分类 - 修复字段映射
+    // 设置分类 - 修复字段映射：优先使用 category，其次 categoryId
     const categoryId = aiResult.category || aiResult.categoryId || 1;
     const itemName = aiResult.name || aiResult.itemName || '未知';
+    
+    console.log('分类ID:', categoryId, '物品名称:', itemName);
     
     if (categoryId === 1) { // 上衣
       casIndex1 = this.getCasIndex1(itemName);
@@ -222,7 +226,8 @@ Page({
         classify: '女士上衣',
         details: itemName,
         area: itemName,
-        casIndex1: casIndex1
+        casIndex1: casIndex1,
+        name: itemName  // 设置名称
       });
     } else if (categoryId === 2) { // 外套
       casIndex4 = this.getCasIndex4(itemName);
@@ -230,7 +235,8 @@ Page({
         classify: '女士外套',
         details: itemName,
         area: itemName,
-        casIndex4: casIndex4
+        casIndex4: casIndex4,
+        name: itemName  // 设置名称
       });
     } else if (categoryId === 3) { // 裙装
       casIndex6 = this.getCasIndex6(itemName);
@@ -238,7 +244,8 @@ Page({
         classify: '女士裙子',
         details: itemName,
         area: itemName,
-        casIndex6: casIndex6
+        casIndex6: casIndex6,
+        name: itemName  // 设置名称
       });
     } else if (categoryId === 4) { // 裤装
       casIndex7 = this.getCasIndex7(itemName);
@@ -246,7 +253,8 @@ Page({
         classify: '女士裤子',
         details: itemName,
         area: itemName,
-        casIndex7: casIndex7
+        casIndex7: casIndex7,
+        name: itemName  // 设置名称
       });
     } else if (categoryId === 5) { // 鞋子
       casIndex8 = this.getCasIndex8(itemName);
@@ -254,7 +262,8 @@ Page({
         classify: '女鞋',
         details: itemName,
         area: itemName,
-        casIndex8: casIndex8
+        casIndex8: casIndex8,
+        name: itemName  // 设置名称
       });
     }
     
@@ -277,6 +286,8 @@ Page({
       stylingAdvice: aiResult.stylingAdvice || '建议搭配基础款单品'
     });
     
+    console.log('表单填充完成');
+    
     wx.showToast({
       title: 'AI已自动识别并分类',
       icon: 'success',
@@ -294,23 +305,35 @@ Page({
       title: '上传中',
     })
     
-    const cloudPath = that.data.name + filePath.match(/\.[^.]+?$/)[0]
-    console.log(cloudPath);
+    // 生成唯一的云存储路径
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const fileExt = filePath.match(/\.[^.]+?$/)[0];
+    const cloudPath = `ai_recognition/${timestamp}_${randomStr}${fileExt}`;
+    
+    console.log('准备上传到云存储，路径:', cloudPath);
+    console.log('本地文件路径:', filePath);
     
     wx.cloud.uploadFile({
       cloudPath,
       filePath,
       success: res => {
-        console.log('[上传文件] 成功：', res)
-        const imageUrl = 'https://7765-we-63574e-1258830969.tcb.qcloud.la/' + cloudPath;
+        console.log('[上传文件] 成功：', res);
+        console.log('云存储fileID:', res.fileID);
+        
+        // 使用返回的fileID作为图片URL
+        const imageUrl = res.fileID;
         
         that.setData({
           cloudPath: cloudPath,
           url: imageUrl
-        })
+        });
+        
+        console.log('图片上传成功，URL:', imageUrl);
         
         // 如果有AI识别结果，自动保存到数据库
         if (aiResult) {
+          console.log('开始保存AI识别结果到数据库...');
           that.saveToDatabase(imageUrl, aiResult);
         } else {
           wx.showToast({
@@ -320,10 +343,16 @@ Page({
         }
       },
       fail: e => {
-        console.error('[上传文件] 失败：', e)
+        console.error('[上传文件] 失败：', e);
+        console.error('错误详情:', {
+          errCode: e.errCode,
+          errMsg: e.errMsg
+        });
+        
         wx.showToast({
           icon: 'none',
-          title: '上传失败',
+          title: '上传失败: ' + (e.errMsg || '未知错误'),
+          duration: 3000
         })
       },
       complete: () => {
@@ -342,11 +371,15 @@ Page({
     console.log('图片URL:', imageUrl);
     console.log('AI识别结果:', aiResult);
     
-    // 根据AI识别结果确定分类ID
+    // 根据AI识别结果确定分类ID - 修复字段映射：category 或 categoryId
     let categoryId = 1; // 默认分类
-    if (aiResult.categoryId) {
+    if (aiResult.category) {
+      categoryId = aiResult.category;
+    } else if (aiResult.categoryId) {
       categoryId = aiResult.categoryId;
     }
+    
+    console.log('识别的分类ID:', categoryId);
     
     // 根据分类ID确定分类名称
     const categoryNames = {
@@ -360,12 +393,15 @@ Page({
     
     const db = wx.cloud.database();
     
+    // 生成物品名称（如果AI识别结果中没有name）
+    const itemName = aiResult.name || that.data.name || `${categoryNames[categoryId] || '衣物'}_${Date.now()}`;
+    
     // 准备要保存的数据
     const dataToSave = {
       // 基本信息
-      name: aiResult.name || that.data.name || '未命名衣物',
+      name: itemName,
       classify: categoryNames[categoryId] || '未分类',
-      details: aiResult.details || that.data.details || 'AI识别',
+      details: aiResult.name || aiResult.details || that.data.details || 'AI识别',
       style: aiResult.style || that.data.style || '未知',
       color: aiResult.color || that.data.color || '未知',
       stylingAdvice: aiResult.stylingAdvice || that.data.stylingAdvice || '建议搭配基础款单品',
@@ -386,7 +422,7 @@ Page({
       createTime: new Date(),
       
       // 标签信息
-      tags: aiResult.tags || `${aiResult.style || '未知'} ${aiResult.color || '未知'}`,
+      tags: Array.isArray(aiResult.tags) ? aiResult.tags.join(' ') : (aiResult.tags || `${aiResult.style || '未知'} ${aiResult.color || '未知'}`),
       
       // 其他信息
       status: 'active',
@@ -399,10 +435,12 @@ Page({
     db.collection("clothes").add({
       data: dataToSave,
       success: function(res) {
-        console.log('保存到数据库成功:', res);
+        console.log('✅ 保存到数据库成功!');
+        console.log('新增记录ID:', res._id);
+        console.log('完整响应:', res);
         
         wx.showToast({
-          title: 'AI识别完成，添加成功！',
+          title: 'AI识别完成，已添加到橱窗！',
           icon: 'success',
           duration: 2000
         });
@@ -410,23 +448,36 @@ Page({
         // 通知class页面更新数据
         that.notifyClassPageUpdate(res._id, categoryId, aiResult);
         
-        // 延迟返回上一页
+        // 延迟返回上一页，让用户看到成功提示
         setTimeout(() => {
           wx.navigateBack();
         }, 2000);
       },
       fail: function(error) {
-        console.error('保存到数据库失败:', error);
+        console.error('❌ 保存到数据库失败!');
+        console.error('错误对象:', error);
         console.error('错误详情:', {
           errCode: error.errCode,
           errMsg: error.errMsg,
           stack: error.stack
         });
         
+        // 提供更详细的错误信息
+        let errorMsg = '保存失败';
+        if (error.errMsg) {
+          if (error.errMsg.includes('permission')) {
+            errorMsg = '没有权限，请检查数据库权限设置';
+          } else if (error.errMsg.includes('timeout')) {
+            errorMsg = '保存超时，请检查网络';
+          } else {
+            errorMsg = error.errMsg;
+          }
+        }
+        
         wx.showToast({
-          title: '保存失败，请重试',
+          title: errorMsg,
           icon: 'none',
-          duration: 2000
+          duration: 3000
         });
       }
     });
@@ -611,30 +662,6 @@ else {
     this.setData({
       testbtn4: !this.data.testbtn4
     })
-  },
-
-  // 选择图片
-  chooseImage: function() {
-    const that = this;
-    wx.chooseImage({
-      count: 1,
-      sizeType: ['compressed'],
-      sourceType: ['album', 'camera'],
-      success: function(res) {
-        const tempFilePath = res.tempFilePaths[0];
-        that.setData({
-          imagefilepath: tempFilePath,
-          imageList: [tempFilePath]
-        });
-      },
-      fail: function(err) {
-        console.error('选择图片失败:', err);
-        wx.showToast({
-          title: '选择图片失败',
-          icon: 'none'
-        });
-      }
-    });
   },
 
   // 预览图片
